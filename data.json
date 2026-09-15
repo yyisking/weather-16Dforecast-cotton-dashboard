@@ -1,0 +1,445 @@
+{
+  "dashboard_id": "cotton_public_supply_weather_dashboard_v0_1",
+  "snapshot_as_of_date": "2026-09-13",
+  "official_report_month": "September 2026",
+  "conclusion": "官方平衡趋紧；当地天气观察增加供给下修风险，但尚不足以改写 USDA 产量。",
+  "tightening_weather_condition_met": true,
+  "global_numeric_weather_score": null,
+  "global_weather_conclusion": "未生成全球数值天气分，仅保留四个当地棉区观察",
+  "cross_region_weather_comparable": false,
+  "weather_to_supply_conversion_performed": false,
+  "units": {
+    "area_harvested": "1000_ha",
+    "supply_balance": "1000_480lb_bales",
+    "weather_stress": "local theoretical index as supplied; not a production unit"
+  },
+  "official_source": {
+    "publisher": "USDA Foreign Agricultural Service",
+    "title": "Cotton: World Markets and Trade",
+    "url": "https://apps.fas.usda.gov/psdonline/circulars/cotton.pdf"
+  },
+  "supply": [
+    {
+      "geography": "World",
+      "name": "全球",
+      "direction": "tightening",
+      "area_harvested": 29665,
+      "production": 117315,
+      "production_prior": 121945,
+      "production_change": -4630,
+      "production_change_pct": -3.8,
+      "domestic_use": 122919,
+      "domestic_use_change_pct": 1.48,
+      "imports": 44236,
+      "exports": 44224,
+      "ending_stocks": 69857,
+      "ending_stocks_change_pct": -7.23,
+      "stocks_to_use": 41.79,
+      "stocks_to_use_prior": 45.17,
+      "stocks_to_use_change_pp": -3.38
+    },
+    {
+      "geography": "China",
+      "name": "中国",
+      "direction": "tightening",
+      "area_harvested": 3000,
+      "production": 33500,
+      "production_prior": 35800,
+      "production_change": -2300,
+      "production_change_pct": -6.42,
+      "domestic_use": 42000,
+      "domestic_use_change_pct": 0.96,
+      "imports": 7000,
+      "exports": 75,
+      "ending_stocks": 34667,
+      "ending_stocks_change_pct": -4.35,
+      "stocks_to_use": 82.39,
+      "stocks_to_use_prior": 87.03,
+      "stocks_to_use_change_pp": -4.64
+    },
+    {
+      "geography": "United States",
+      "name": "美国",
+      "direction": "tightening",
+      "area_harvested": 3304,
+      "production": 13201,
+      "production_prior": 13897,
+      "production_change": -696,
+      "production_change_pct": -5.01,
+      "domestic_use": 1500,
+      "domestic_use_change_pct": 0.0,
+      "imports": 5,
+      "exports": 12300,
+      "ending_stocks": 3600,
+      "ending_stocks_change_pct": -13.25,
+      "stocks_to_use": 26.09,
+      "stocks_to_use_prior": 30.07,
+      "stocks_to_use_change_pp": -3.99
+    },
+    {
+      "geography": "Brazil",
+      "name": "巴西",
+      "direction": "tightening",
+      "area_harvested": 2000,
+      "production": 18500,
+      "production_prior": 18750,
+      "production_change": -250,
+      "production_change_pct": -1.33,
+      "domestic_use": 3400,
+      "domestic_use_change_pct": 1.49,
+      "imports": 5,
+      "exports": 15500,
+      "ending_stocks": 3209,
+      "ending_stocks_change_pct": -10.96,
+      "stocks_to_use": 16.98,
+      "stocks_to_use_prior": 19.12,
+      "stocks_to_use_change_pp": -2.14
+    },
+    {
+      "geography": "India",
+      "name": "印度",
+      "direction": "tightening",
+      "area_harvested": 11500,
+      "production": 24000,
+      "production_prior": 23800,
+      "production_change": 200,
+      "production_change_pct": 0.84,
+      "domestic_use": 26500,
+      "domestic_use_change_pct": 1.92,
+      "imports": 3000,
+      "exports": 1500,
+      "ending_stocks": 10315,
+      "ending_stocks_change_pct": -8.84,
+      "stocks_to_use": 36.84,
+      "stocks_to_use_prior": 41.75,
+      "stocks_to_use_change_pp": -4.91
+    }
+  ],
+  "regions": [
+    {
+      "id": "china",
+      "name": "中国 · 新疆",
+      "short_name": "新疆",
+      "geography": "China",
+      "date": "2026-09-13",
+      "source_file_max_date": "2026-09-13",
+      "score": 27.38095238095238,
+      "band": "mild",
+      "band_display": "轻度",
+      "change_7d": 4.2517006802721085,
+      "change_yoy": 1.0317460317460316,
+      "score_7d_ago": 23.12925170068027,
+      "score_year_ago": 26.349206349206348,
+      "confidence": "low",
+      "confidence_display": "低",
+      "point_coverage": 1.0,
+      "factor_weight_coverage": 1.0,
+      "stage_proxy": "mixed_north_south_east_typical_calendar_proxy",
+      "stage_binding": "north=boll_opening;south=boll_opening_picking;east=boll_opening_picking_proxy",
+      "stage_display": "北疆吐絮；南疆与东疆处于吐絮—采收期代理",
+      "source_mode": "混合来源；逐行来源暂不可分",
+      "theoretical_not_calibrated": true,
+      "factors": [
+        {
+          "id": "high_heat",
+          "label": "高温",
+          "score": null,
+          "status": "not_available_or_inactive"
+        },
+        {
+          "id": "low_temperature",
+          "label": "低温",
+          "score": 2.645502645502647,
+          "status": "available"
+        },
+        {
+          "id": "excess_rain",
+          "label": "过量降雨",
+          "score": 53.7037037037037,
+          "status": "available"
+        },
+        {
+          "id": "spring_wind",
+          "label": "春季风害",
+          "score": null,
+          "status": "not_available_or_inactive"
+        }
+      ],
+      "drivers": [
+        {
+          "factor_id": "excess_rain",
+          "contribution": 26.0204081632653
+        },
+        {
+          "factor_id": "low_temperature",
+          "contribution": 1.3605442176870755
+        }
+      ],
+      "inactive": [
+        "irrigation_unobserved",
+        "modeled_soil_moisture_excluded",
+        "low_solar_excluded_pending_dedup",
+        "hail_unobserved"
+      ],
+      "gap_codes": [
+        "typical_calendar_proxy",
+        "equal_field_point_weight_not_production_weight",
+        "irrigation_unobserved",
+        "mountain_to_field_water_transmission_gap",
+        "modeled_soil_moisture_excluded",
+        "low_solar_excluded_pending_dedup",
+        "hail_unobserved",
+        "theoretical_not_calibrated"
+      ],
+      "supply_risk_reading": "当地天气对供给的不利风险上升",
+      "production_change_pct": -6.42,
+      "ending_stocks_change_pct": -4.35
+    },
+    {
+      "id": "us",
+      "name": "美国 · 得州",
+      "short_name": "得州",
+      "geography": "United States",
+      "date": "2026-09-13",
+      "source_file_max_date": "2026-09-13",
+      "score": 19.08,
+      "band": "low",
+      "band_display": "低度",
+      "change_7d": -3.48,
+      "change_yoy": 7.33,
+      "score_7d_ago": 22.56,
+      "score_year_ago": 11.75,
+      "confidence": "medium",
+      "confidence_display": "中",
+      "point_coverage": 1.0,
+      "factor_weight_coverage": 1.0,
+      "stage_proxy": "mixed_texas_subregion_calendar_proxy",
+      "stage_binding": "typical_subregion_calendar_proxy",
+      "stage_display": "得州各分区典型作物日历代理",
+      "source_mode": "仅实况",
+      "theoretical_not_calibrated": true,
+      "factors": [
+        {
+          "id": "root_zone_dryness",
+          "label": "根区干旱",
+          "score": 68.25,
+          "status": "available"
+        },
+        {
+          "id": "high_heat",
+          "label": "高温",
+          "score": 78.57,
+          "status": "available"
+        },
+        {
+          "id": "low_temperature",
+          "label": "低温",
+          "score": 0.0,
+          "status": "available"
+        },
+        {
+          "id": "establishment_excess_rain",
+          "label": "播种建苗期过量降雨",
+          "score": null,
+          "status": "not_available_or_inactive"
+        },
+        {
+          "id": "harvest_rain",
+          "label": "收获期降雨",
+          "score": 0.29,
+          "status": "available"
+        }
+      ],
+      "drivers": [
+        {
+          "factor_id": "high_heat",
+          "contribution": 10.06,
+          "score": 78.57
+        },
+        {
+          "factor_id": "root_zone_dryness",
+          "contribution": 8.74,
+          "score": 68.25
+        },
+        {
+          "factor_id": "harvest_rain",
+          "contribution": 0.29,
+          "score": 0.29
+        }
+      ],
+      "inactive": [
+        "low_temperature",
+        "establishment_excess_rain"
+      ],
+      "gap_codes": [
+        "meta_date_stale",
+        "gridded_proxy",
+        "no_irrigation_label",
+        "not_calibrated"
+      ],
+      "supply_risk_reading": "当地天气对供给的不利风险缓解",
+      "production_change_pct": -5.01,
+      "ending_stocks_change_pct": -13.25
+    },
+    {
+      "id": "brazil",
+      "name": "巴西 · 马托格罗索",
+      "short_name": "马托格罗索",
+      "geography": "Brazil",
+      "date": "2026-09-12",
+      "source_file_max_date": "2026-09-12",
+      "score": 65.07936507936508,
+      "band": "high",
+      "band_display": "高度",
+      "change_7d": 3.97,
+      "change_yoy": 64.25,
+      "score_7d_ago": 61.11111111111111,
+      "score_year_ago": 0.833333333333334,
+      "confidence": "low",
+      "confidence_display": "低",
+      "point_coverage": 1.0,
+      "factor_weight_coverage": 1.0,
+      "stage_proxy": "C",
+      "stage_binding": "typical_local_calendar_proxy",
+      "stage_display": "典型当地作物日历代理 · C 阶段",
+      "source_mode": "仅实况",
+      "theoretical_not_calibrated": true,
+      "factors": [
+        {
+          "id": "harvest_rain",
+          "label": "收获期降雨",
+          "score": 65.07936507936508,
+          "status": "available"
+        },
+        {
+          "id": "root_zone_dryness",
+          "label": "根区干旱",
+          "score": null,
+          "status": "not_available_or_inactive"
+        },
+        {
+          "id": "high_temperature",
+          "label": "高温",
+          "score": null,
+          "status": "not_available_or_inactive"
+        },
+        {
+          "id": "high_vpd",
+          "label": "高 VPD",
+          "score": null,
+          "status": "not_available_or_inactive"
+        },
+        {
+          "id": "low_solar_radiation",
+          "label": "低太阳辐射",
+          "score": null,
+          "status": "not_available_or_inactive"
+        },
+        {
+          "id": "low_temperature",
+          "label": "低温",
+          "score": null,
+          "status": "not_available_or_inactive"
+        }
+      ],
+      "drivers": [
+        {
+          "factor_id": "harvest_rain",
+          "contribution": 65.08,
+          "score": 65.08
+        }
+      ],
+      "inactive": [
+        "root_zone_dryness",
+        "low_solar_radiation",
+        "high_vpd",
+        "high_temperature",
+        "low_temperature"
+      ],
+      "gap_codes": [],
+      "supply_risk_reading": "当地天气对供给的不利风险上升",
+      "production_change_pct": -1.33,
+      "ending_stocks_change_pct": -10.96
+    },
+    {
+      "id": "india",
+      "name": "印度 · 中部雨养带",
+      "short_name": "中部雨养带",
+      "geography": "India",
+      "date": "2026-09-13",
+      "source_file_max_date": "2026-09-13",
+      "score": 40.66409404034064,
+      "band": "moderate",
+      "band_display": "中度",
+      "change_7d": 3.5816515508265283,
+      "change_yoy": 23.788847044966722,
+      "score_7d_ago": 37.082442489514115,
+      "score_year_ago": 16.87524699537392,
+      "confidence": "low",
+      "confidence_display": "低",
+      "point_coverage": 1.0,
+      "factor_weight_coverage": 1.0,
+      "stage_proxy": "mixed_central_and_telangana_typical_calendar_proxy",
+      "stage_binding": "central=flowering_boll_set;tg=flowering_boll_set",
+      "stage_display": "中部与特伦加纳开花—结铃期代理",
+      "source_mode": "混合来源；逐行来源暂不可分",
+      "theoretical_not_calibrated": true,
+      "factors": [
+        {
+          "id": "root_zone_dryness",
+          "label": "根区干旱",
+          "score": 66.1534919195844,
+          "status": "available"
+        },
+        {
+          "id": "hot_dry_compound",
+          "label": "高温干旱复合",
+          "score": 37.30101167091194,
+          "status": "available"
+        },
+        {
+          "id": "excess_rain_waterlogging",
+          "label": "过量降雨／渍涝",
+          "score": 1.0905323144670385,
+          "status": "available"
+        }
+      ],
+      "drivers": [
+        {
+          "factor_id": "root_zone_dryness",
+          "contribution": 30.532380885962027
+        },
+        {
+          "factor_id": "hot_dry_compound",
+          "contribution": 9.880051851040065
+        },
+        {
+          "factor_id": "excess_rain_waterlogging",
+          "contribution": 0.25166130333854736
+        }
+      ],
+      "inactive": [
+        "low_solar_excluded_pending_dedup",
+        "VPD_not_included",
+        "irrigation_unobserved"
+      ],
+      "gap_codes": [
+        "typical_calendar_proxy",
+        "state_production_weight_is_2022_23_proxy",
+        "within_state_points_equal_weight",
+        "irrigation_unobserved",
+        "field_waterlogging_unobserved",
+        "low_solar_excluded_pending_dedup",
+        "theoretical_not_calibrated"
+      ],
+      "supply_risk_reading": "当地天气对供给的不利风险上升",
+      "production_change_pct": 0.84,
+      "ending_stocks_change_pct": -8.84
+    }
+  ],
+  "limitations": [
+    "当地天气代理不可跨地区比较；不对四地分数合并、加权或排序。",
+    "未执行天气到产量转换，官方供给值保持不变。",
+    "当地天气观察未校准为产量损失、全国减产数量、概率或因果估计。"
+  ]
+}
