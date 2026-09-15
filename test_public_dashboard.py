@@ -34,12 +34,25 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertFalse(self.payload["cross_region_weather_comparable"])
         self.assertFalse(self.payload["weather_to_supply_conversion_performed"])
 
+    def test_seasonal_series_have_current_prior_and_extreme_band(self):
+        self.assertEqual(set(self.payload["seasonal"]), {"china", "us", "brazil", "india"})
+        for region_id, seasonal in self.payload["seasonal"].items():
+            self.assertEqual(seasonal["status"], "available", region_id)
+            self.assertEqual(seasonal["current_year"], 2026, region_id)
+            self.assertEqual(seasonal["last_year"], 2025, region_id)
+            self.assertIn("score", seasonal["metrics"], region_id)
+            for metric, series in seasonal["metrics"].items():
+                self.assertEqual(len(series["day_keys"]), 365, (region_id, metric))
+                self.assertEqual(len(series["history_min"]), 365, (region_id, metric))
+                self.assertEqual(len(series["history_max"]), 365, (region_id, metric))
+                self.assertEqual(len(series["last_year"]), 365, (region_id, metric))
+                self.assertEqual(len(series["current_year"]), 365, (region_id, metric))
+
     def test_page_exposes_required_sections_and_null_copy(self):
         html = (builder.DIST / "index.html").read_text(encoding="utf-8")
-        for phrase in ("全球供需锚点", "四大棉区天气胁迫", "分项因子", "官方供需明细", "暂无可用值"):
+        for phrase in ("全球供需锚点", "四大棉区天气胁迫", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts"):
             self.assertIn(phrase, html)
 
 
 if __name__ == "__main__":
     unittest.main()
-
