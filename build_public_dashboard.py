@@ -4,6 +4,10 @@
 from __future__ import annotations
 
 import json
+import csv
+import math
+from collections import defaultdict
+from datetime import date
 from pathlib import Path
 
 
@@ -17,6 +21,29 @@ REGION_PATHS = {
     "China": COTTON_ROOT / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_1_latest.json",
     "India": COTTON_ROOT / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_latest.json",
     "Brazil": COTTON_ROOT / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_1_latest.json",
+}
+
+DAILY_PATHS = {
+    "China": COTTON_ROOT / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_1_daily.csv",
+    "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_1_daily.csv",
+    "Brazil": COTTON_ROOT / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_1_daily.csv",
+    "India": COTTON_ROOT / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_daily.csv",
+}
+
+METRIC_META = {
+    "score": {"label": "综合天气胁迫", "unit": "分", "window": "逐日指数"},
+    "root_zone_dryness": {"label": "根区干旱", "unit": "分", "window": "逐日因子分"},
+    "high_heat": {"label": "高温", "unit": "分", "window": "逐日因子分"},
+    "low_temperature": {"label": "低温", "unit": "分", "window": "逐日因子分"},
+    "excess_rain": {"label": "过量降雨", "unit": "分", "window": "逐日因子分"},
+    "spring_wind": {"label": "春季风害", "unit": "分", "window": "逐日因子分"},
+    "establishment_excess_rain": {"label": "播种建苗期过量降雨", "unit": "分", "window": "逐日因子分"},
+    "harvest_rain": {"label": "收获期降雨", "unit": "分", "window": "逐日因子分"},
+    "high_temperature": {"label": "高温", "unit": "分", "window": "逐日因子分"},
+    "high_vpd": {"label": "高 VPD", "unit": "分", "window": "逐日因子分"},
+    "low_solar_radiation": {"label": "低太阳辐射", "unit": "分", "window": "逐日因子分"},
+    "hot_dry_compound": {"label": "高温干旱复合", "unit": "分", "window": "逐日因子分"},
+    "excess_rain_waterlogging": {"label": "过量降雨／渍涝", "unit": "分", "window": "逐日因子分"},
 }
 
 REGION_META = {
@@ -103,6 +130,110 @@ def source_mode(raw: dict) -> str:
     return "混合来源；逐行来源暂不可分"
 
 
+def _calendar_keys() -> list[str]:
+    """Return leap-safe month-day keys for a 365-day seasonal axis."""
+    keys = []
+    cursor = date(2001, 1, 1)
+    while cursor.year == 2001:
+        if cursor.month != 2 or cursor.day != 29:
+            keys.append(cursor.strftime("%m-%d"))
+        cursor = cursor.fromordinal(cursor.toordinal() + 1)
+    return keys
+
+
+def build_seasonal(geography: str) -> dict:
+    """Build daily seasonal bands and current/prior year traces from approved daily files."""
+    path = DAILY_PATHS[geography]
+    if not path.exists():
+        return {"status": "gap", "source": str(path), "metrics": {}}
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    if not rows:
+        return {"status": "gap", "source": str(path), "metrics": {}}
+
+    keys = _calendar_keys()
+    by_metric_year_day: dict[str, dict[int, dict[str, list[float]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    metric_fields = {"score": "theoretical_weather_stress_index"}
+    for _factor_id, _label, field in REGION_META[geography]["factor_fields"]:
+        metric_fields[_factor_id] = field
+    years = set()
+    for row in rows:
+        raw_date = row.get("date") or ""
+        try:
+            parsed = date.fromisoformat(raw_date[:10])
+        except ValueError:
+            continue
+        if parsed.month == 2 and parsed.day == 29:
+            continue
+        years.add(parsed.year)
+        day_key = parsed.strftime("%m-%d")
+        for metric, field in metric_fields.items():
+            value = row.get(field)
+            if value in (None, "", "null", "None"):
+                continue
+            try:
+                numeric = float(value)
+                if math.isfinite(numeric):
+                    by_metric_year_day[metric][parsed.year][day_key].append(numeric)
+            except (TypeError, ValueError):
+                continue
+    if not years:
+        return {"status": "gap", "source": str(path), "metrics": {}}
+
+    current_year = max(years)
+    prior_year = current_year - 1
+    metrics = {}
+    for metric in metric_fields:
+        year_map = by_metric_year_day.get(metric, {})
+
+        def year_trace(year: int) -> list[float | None]:
+            return [
+                (sum(year_map.get(year, {}).get(key, [])) / len(year_map[year][key]))
+                if year_map.get(year, {}).get(key)
+                else None
+                for key in keys
+            ]
+
+        current = year_trace(current_year)
+        prior = year_trace(prior_year)
+        historical_years = sorted(year for year in year_map if year not in {current_year, prior_year})
+        hist_min, hist_max = [], []
+        for key in keys:
+            values = [
+                sum(year_map[year][key]) / len(year_map[year][key])
+                for year in historical_years
+                if year_map[year].get(key)
+            ]
+            hist_min.append(min(values) if values else None)
+            hist_max.append(max(values) if values else None)
+        if not any(value is not None for value in current + prior + hist_min + hist_max):
+            continue
+        meta = dict(METRIC_META.get(metric, {"label": metric, "unit": "分", "window": "逐日因子分"}))
+        meta.update(
+            {
+                "day_keys": keys,
+                "history_min": hist_min,
+                "history_max": hist_max,
+                "last_year": prior,
+                "current_year": current,
+                "last_year_label": str(prior_year),
+                "current_year_label": str(current_year),
+                "history_years": historical_years,
+                "history_year_count": len(historical_years),
+                "status": "available" if any(value is not None for value in current) else "historical_only",
+            }
+        )
+        metrics[metric] = meta
+    return {
+        "status": "available" if metrics else "gap",
+        "source": str(path.relative_to(COTTON_ROOT)),
+        "axis": "month_day",
+        "current_year": current_year,
+        "last_year": prior_year,
+        "metrics": metrics,
+    }
+
+
 def build_region(geography: str, supply_row: dict) -> dict:
     raw = read_json(REGION_PATHS[geography])
     meta = REGION_META[geography]
@@ -179,7 +310,9 @@ def build() -> dict:
             }
         )
 
-    regions = [build_region(geo, row_by_geo[geo]) for geo in ("China", "United States", "Brazil", "India")]
+    region_geographies = ("China", "United States", "Brazil", "India")
+    regions = [build_region(geo, row_by_geo[geo]) for geo in region_geographies]
+    seasonal = {REGION_META[geo]["id"]: build_seasonal(geo) for geo in region_geographies}
     return {
         "dashboard_id": "cotton_public_supply_weather_dashboard_v0_1",
         "snapshot_as_of_date": brief["snapshot_as_of_date"],
@@ -198,6 +331,7 @@ def build() -> dict:
         },
         "supply": supply,
         "regions": regions,
+        "seasonal": seasonal,
         "limitations": brief["limitations"],
     }
 
@@ -212,4 +346,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
