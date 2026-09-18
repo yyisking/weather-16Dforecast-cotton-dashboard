@@ -54,6 +54,10 @@ def protected_paths() -> tuple[Path, ...]:
         COTTON / "research/derived/australia_central_asia_cotton_variable_watch_v0_2.csv",
         COTTON / "research/derived/australia_central_asia_cotton_era5_daily_seasonality_v0_2.csv",
         COTTON / "research/derived/central_asia_cotton_current_weather_watch_v0_1.json",
+        COTTON / "research/derived/usda_fas_cotton_supply_distribution_2025_26_2026_27_v0_2.csv",
+        COTTON / "research/derived/cotton_supply_balance_weather_overlay_v0_2.csv",
+        COTTON / "research/derived/cotton_supply_balance_weather_overlay_v0_2.json",
+        COTTON / "research/derived/cotton_current_supply_decision_brief_v0_2.json",
         COTTON / "research/raw/australia_central_asia_era5_daily_v0_1",
         COTTON / "research/raw/central_asia_era5_gap_retry_v0_1",
         COTTON / "research/derived/australia_central_asia_cotton_point_crosswalk_v0_1.csv",
@@ -87,6 +91,9 @@ class PublicDashboardTest(unittest.TestCase):
 
     def test_supply_rows_are_exact_source_values(self):
         source = {row["geography"]: row for row in self.brief["rows"]}
+        self.assertEqual([row["geography"] for row in self.brief["rows"]], ["World", "China", "United States", "Brazil", "India", "Australia"])
+        self.assertEqual(len(self.payload["supply"]), 6)
+        self.assertEqual([row["geography"] for row in self.payload["supply"]], list(source))
         for row in self.payload["supply"]:
             raw = source[row["geography"]]
             self.assertEqual(row["production"], raw["current_production_1000_480lb_bales"])
@@ -104,7 +111,15 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertEqual(australia["confidence"], self.au_latest["confidence"])
         self.assertEqual(australia["gap_codes"], self.au_latest["gap_codes"])
         self.assertEqual(australia["point_coverage"], 0.875)
-        self.assertEqual(australia["supply_risk_reading"], "未接入澳洲官方供需数量；天气指数未换算产量")
+        supply = next(row for row in self.brief["rows"] if row["geography"] == "Australia")
+        official = australia["official_supply"]
+        self.assertEqual(official["production_change_1000_480lb_bales"], supply["production_change_1000_480lb_bales"])
+        self.assertEqual(official["production_change_pct"], supply["production_change_pct"])
+        self.assertEqual(official["ending_stocks_change_1000_480lb_bales"], supply["ending_stocks_change_1000_480lb_bales"])
+        self.assertEqual(official["ending_stocks_change_pct"], supply["ending_stocks_change_pct"])
+        self.assertIsNone(official["domestic_use_change_pct"])
+        self.assertEqual(australia["supply_detail"], "USDA 官方棉花产量变化 -1,500 千包（-33.33%）；期末库存变化 -1,400 千包（-36.21%）")
+        self.assertIn("USDA 官方棉花产量变化", australia["supply_risk_reading"])
         factors = {factor["id"]: factor for factor in australia["factors"]}
         self.assertEqual(set(factors), {"low_temperature", "high_heat", "excess_rain", "high_vpd", "low_solar"})
         self.assertIsNone(factors["high_heat"]["score"])
@@ -213,8 +228,9 @@ class PublicDashboardTest(unittest.TestCase):
 
     def test_page_and_publish_files_are_synced_and_safe(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
-        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "中亚五国天气观察", "10 个 AOI", "综合分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts"):
+        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "中亚五国天气观察", "10 个 AOI", "综合分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率"):
             self.assertIn(phrase, html)
+        self.assertNotIn("澳大利亚未接入官方供需数量", html)
         self.assertNotIn("bullish", html.lower())
         self.assertNotIn("bearish", html.lower())
         self.assertNotIn("NaN", html)
@@ -228,7 +244,7 @@ class PublicDashboardTest(unittest.TestCase):
     def test_published_data_fetch_is_versioned_for_cache_busting(self):
         for page in (ROOT / "index.html", ROOT / "dist/index.html"):
             html = page.read_text(encoding="utf-8")
-            self.assertIn("fetch('./data.json?v=20260918-v02')", html)
+            self.assertIn("fetch('./data.json?v=20260918-v02-supply')", html)
             self.assertNotIn("fetch('./data.json')", html)
 
     def test_temp_builder_is_deterministic(self):

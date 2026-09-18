@@ -15,7 +15,7 @@ SITE_ROOT = Path(__file__).resolve().parent
 COTTON_ROOT = SITE_ROOT.parent
 DIST = SITE_ROOT / "dist"
 
-BRIEF_PATH = COTTON_ROOT / "research/derived/cotton_current_supply_decision_brief_v0_1.json"
+BRIEF_PATH = COTTON_ROOT / "research/derived/cotton_current_supply_decision_brief_v0_2.json"
 AUSTRALIA_LATEST_PATH = COTTON_ROOT / "au_weather/derived/australia_theoretical_weather_stress_index_v0_1_latest.json"
 AUSTRALIA_DAILY_PATH = COTTON_ROOT / "au_weather/derived/australia_theoretical_weather_stress_index_v0_1_daily.csv"
 CENTRAL_ASIA_WATCH_PATH = COTTON_ROOT / "research/derived/central_asia_cotton_current_weather_watch_v0_1.json"
@@ -135,6 +135,7 @@ GEO_DISPLAY = {
     "United States": "美国",
     "Brazil": "巴西",
     "India": "印度",
+    "Australia": "澳大利亚",
 }
 
 BAND_DISPLAY = {"low": "低度", "mild": "轻度", "moderate": "中度", "high": "高度"}
@@ -418,9 +419,36 @@ def build_region(geography: str, supply_row: dict | None = None) -> dict:
     }
 
 
-def build_australia_region() -> dict:
+def build_australia_region(supply_row: dict) -> dict:
     raw = read_json(AUSTRALIA_LATEST_PATH)
     meta = REGION_META["Australia"]
+    official_supply = {
+        "prior_source_table": supply_row["prior_source_table"],
+        "current_source_table": supply_row["current_source_table"],
+        "prior_value_status": supply_row["prior_value_status"],
+        "current_value_status": supply_row["current_value_status"],
+        "area_harvested_1000_ha": supply_row["current_area_harvested_1000_ha"],
+        "current_production_1000_480lb_bales": supply_row["current_production_1000_480lb_bales"],
+        "production_change_1000_480lb_bales": supply_row["production_change_1000_480lb_bales"],
+        "production_change_pct": supply_row["production_change_pct"],
+        "current_domestic_use_1000_480lb_bales": supply_row["current_domestic_use_1000_480lb_bales"],
+        "domestic_use_change_pct": supply_row["domestic_use_change_pct"],
+        "current_exports_1000_480lb_bales": supply_row["current_exports_1000_480lb_bales"],
+        "current_ending_stocks_1000_480lb_bales": supply_row["current_ending_stocks_1000_480lb_bales"],
+        "ending_stocks_change_1000_480lb_bales": supply_row["ending_stocks_change_1000_480lb_bales"],
+        "ending_stocks_change_pct": supply_row["ending_stocks_change_pct"],
+        "current_ending_stocks_to_total_use_pct": supply_row["current_ending_stocks_to_total_use_pct"],
+        "ending_stocks_to_total_use_change_pp": supply_row["ending_stocks_to_total_use_change_pp"],
+        "derived_metric_gap_codes": supply_row["derived_metric_gap_codes"],
+    }
+    prod_change = official_supply["production_change_1000_480lb_bales"]
+    prod_pct = official_supply["production_change_pct"]
+    stocks_change = official_supply["ending_stocks_change_1000_480lb_bales"]
+    stocks_pct = official_supply["ending_stocks_change_pct"]
+    supply_detail = (
+        f"USDA 官方棉花产量变化 {prod_change:+,} 千包（{prod_pct:+.2f}%）；"
+        f"期末库存变化 {stocks_change:+,} 千包（{stocks_pct:+.2f}%）"
+    )
     factors = []
     for factor_id, label, field in meta["factor_fields"]:
         value = factor_value(raw, field)
@@ -440,8 +468,13 @@ def build_australia_region() -> dict:
         "stage_display": meta["stage_display"], "source_mode": source_mode(raw),
         "theoretical_not_calibrated": raw.get("theoretical_not_calibrated"), "factors": factors,
         "drivers": raw.get("primary_stress_drivers") or [], "inactive": raw.get("countervailing_or_inactive_factors") or [],
-        "gap_codes": gap_codes, "supply_risk_reading": "未接入澳洲官方供需数量；天气指数未换算产量",
-        "production_change_pct": None, "ending_stocks_change_pct": None,
+        "gap_codes": gap_codes,
+        "supply_risk_reading": supply_row["local_weather_supply_risk_reading"],
+        "production_change_pct": supply_row["production_change_pct"],
+        "ending_stocks_change_pct": supply_row["ending_stocks_change_pct"],
+        "official_supply": official_supply,
+        "supply_detail": supply_detail,
+        "supply_risk_reading": f"{supply_row['local_weather_supply_risk_reading']}；{supply_detail}；天气指数未换算产量",
     }
 
 
@@ -486,14 +519,15 @@ def build() -> dict:
 
     region_geographies = ("China", "United States", "Brazil", "India")
     regions = [build_region(geo, row_by_geo[geo]) for geo in region_geographies]
-    regions.append(build_australia_region())
+    regions.append(build_australia_region(row_by_geo["Australia"]))
     seasonal = {REGION_META[geo]["id"]: build_seasonal(geo) for geo in region_geographies}
     seasonal["australia"] = build_australia_seasonal()
     central_watch = build_central_asia_watch()
     return {
-        "dashboard_id": "cotton_public_supply_weather_dashboard_v0_1",
+        "dashboard_id": "cotton_public_supply_weather_dashboard_v0_2",
         "snapshot_as_of_date": brief["snapshot_as_of_date"],
         "official_report_month": brief["official_report_month"],
+        "supply_snapshot_id": brief["source_snapshot_id"],
         "conclusion": brief["current_conclusion"],
         "tightening_weather_condition_met": brief["tightening_weather_condition_met"],
         "global_numeric_weather_score": None,

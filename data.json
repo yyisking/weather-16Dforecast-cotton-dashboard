@@ -1,11 +1,12 @@
 {
-  "dashboard_id": "cotton_public_supply_weather_dashboard_v0_1",
-  "snapshot_as_of_date": "2026-09-13",
+  "dashboard_id": "cotton_public_supply_weather_dashboard_v0_2",
+  "snapshot_as_of_date": "2026-09-16",
   "official_report_month": "September 2026",
+  "supply_snapshot_id": "cotton_supply_balance_weather_overlay_v0_2",
   "conclusion": "官方平衡趋紧；当地天气观察增加供给下修风险，但尚不足以改写 USDA 产量。",
   "tightening_weather_condition_met": true,
   "global_numeric_weather_score": null,
-  "global_weather_conclusion": "未生成全球数值天气分，仅保留四个当地棉区观察",
+  "global_weather_conclusion": "未生成全球数值天气分，仅保留五个当地棉区观察",
   "cross_region_weather_comparable": false,
   "weather_to_supply_conversion_performed": false,
   "scored_region_count": 5,
@@ -13,7 +14,7 @@
   "units": {
     "area_harvested": "1000_ha",
     "supply_balance": "1000_480lb_bales",
-    "weather_stress": "local theoretical index as supplied; not a production unit"
+    "weather_stress": "local theoretical index; not a production unit"
   },
   "official_source": {
     "publisher": "USDA Foreign Agricultural Service",
@@ -115,6 +116,25 @@
       "stocks_to_use": 36.84,
       "stocks_to_use_prior": 41.75,
       "stocks_to_use_change_pp": -4.91
+    },
+    {
+      "geography": "Australia",
+      "name": "澳大利亚",
+      "direction": "tightening",
+      "area_harvested": 325,
+      "production": 3000,
+      "production_prior": 4500,
+      "production_change": -1500,
+      "production_change_pct": -33.33,
+      "domestic_use": 0,
+      "domestic_use_change_pct": null,
+      "imports": 0,
+      "exports": 4500,
+      "ending_stocks": 2466,
+      "ending_stocks_change_pct": -36.21,
+      "stocks_to_use": 54.8,
+      "stocks_to_use_prior": 69.13,
+      "stocks_to_use_change_pp": -14.33
     }
   ],
   "regions": [
@@ -359,7 +379,7 @@
         "low_temperature"
       ],
       "gap_codes": [],
-      "supply_risk_reading": "当地天气对供给的不利风险上升",
+      "supply_risk_reading": "当地天气对供给的不利风险缓解",
       "production_change_pct": -1.33,
       "ending_stocks_change_pct": -10.96
     },
@@ -533,9 +553,29 @@
         "dd1532_context_only_no_local_sowing_date",
         "theoretical_not_calibrated"
       ],
-      "supply_risk_reading": "未接入澳洲官方供需数量；天气指数未换算产量",
-      "production_change_pct": null,
-      "ending_stocks_change_pct": null
+      "supply_risk_reading": "当地天气对供给的不利风险缓解；USDA 官方棉花产量变化 -1,500 千包（-33.33%）；期末库存变化 -1,400 千包（-36.21%）；天气指数未换算产量",
+      "production_change_pct": -33.33,
+      "ending_stocks_change_pct": -36.21,
+      "official_supply": {
+        "prior_source_table": "Table 06",
+        "current_source_table": "Table 05",
+        "prior_value_status": "latest_confirmed_official",
+        "current_value_status": "latest_confirmed_official",
+        "area_harvested_1000_ha": 325,
+        "current_production_1000_480lb_bales": 3000,
+        "production_change_1000_480lb_bales": -1500,
+        "production_change_pct": -33.33,
+        "current_domestic_use_1000_480lb_bales": 0,
+        "domestic_use_change_pct": null,
+        "current_exports_1000_480lb_bales": 4500,
+        "current_ending_stocks_1000_480lb_bales": 2466,
+        "ending_stocks_change_1000_480lb_bales": -1400,
+        "ending_stocks_change_pct": -36.21,
+        "current_ending_stocks_to_total_use_pct": 54.8,
+        "ending_stocks_to_total_use_change_pp": -14.33,
+        "derived_metric_gap_codes": "prior_domestic_use_zero_denominator_for_domestic_use_change_pct"
+      },
+      "supply_detail": "USDA 官方棉花产量变化 -1,500 千包（-33.33%）；期末库存变化 -1,400 千包（-36.21%）"
     }
   ],
   "seasonal": {
@@ -165996,8 +166036,9 @@
     }
   },
   "limitations": [
-    "当地天气代理不可跨地区比较；不对四地分数合并、加权或排序。",
-    "未执行天气到产量转换，官方供给值保持不变。",
-    "当地天气观察未校准为产量损失、全国减产数量、概率或因果估计。"
+    "五个当地天气代理不可跨地区比较；不对天气分合并、加权或排序。",
+    "未执行天气到产量/供给数量转换，官方 USDA 供给值保持不变。",
+    "当地理论天气胁迫指数未校准为产量损失、全国减产数量、概率或因果估计。",
+    "Australia 使用 USDA 480-lb bales；ABARES kt sidecar 不替代或混入此表。"
   ]
 }
