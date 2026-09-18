@@ -225,6 +225,12 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertNotIn("NaN", payload_text)
         self.assertNotIn("Infinity", payload_text)
 
+    def test_published_data_fetch_is_versioned_for_cache_busting(self):
+        for page in (ROOT / "index.html", ROOT / "dist/index.html"):
+            html = page.read_text(encoding="utf-8")
+            self.assertIn("fetch('./data.json?v=20260918-v02')", html)
+            self.assertNotIn("fetch('./data.json')", html)
+
     def test_temp_builder_is_deterministic(self):
         payload_a = builder.build()
         payload_b = builder.build()
