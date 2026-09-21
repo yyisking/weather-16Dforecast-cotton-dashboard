@@ -8,6 +8,7 @@ import hashlib
 import json
 import tempfile
 import unittest
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import date
 from pathlib import Path
 
@@ -31,12 +32,40 @@ VARIABLES = (
     "temperature_2m_max", "temperature_2m_min", "precipitation_sum",
     "shortwave_radiation_sum", "et0_fao_evapotranspiration", "vapour_pressure_deficit_max",
 )
+COUNTRIES_DISPLAY = {
+    "Kazakhstan": "哈萨克斯坦", "Kyrgyzstan": "吉尔吉斯斯坦", "Tajikistan": "塔吉克斯坦",
+    "Turkmenistan": "土库曼斯坦", "Uzbekistan": "乌兹别克斯坦",
+}
+AOI_DISPLAY = {
+    "Turkistan Region": "突厥斯坦州", "Jalal-Abad Oblast": "贾拉拉巴德州", "Osh Oblast": "奥什州",
+    "Khatlon Oblast": "哈特隆州", "Sughd Oblast": "索格特州", "Mary Velayat": "马雷州",
+    "Dashoguz Velayat": "达沙古兹州", "Fergana Region": "费尔干纳州", "Syrdarya Region": "锡尔河州",
+    "Bukhara Region": "布哈拉州",
+}
+FROZEN_INPUT_SHAS = {
+    COTTON / "research/derived/central_asia_cotton_current_weather_watch_v0_1.json": "477d7ff77b30def52694c3ade2ae6a8a46054ae0a7ecf4e2780195f28f419b71",
+    COTTON / "research/derived/central_asia_cotton_current_weather_watch_v0_1.csv": "bfc128f330ceaf8349b27c30d18c3316aa0d573f82b6dd3336ed7b3184aef18a",
+    COTTON / "research/derived/australia_central_asia_cotton_variable_watch_v0_2.csv": "04af922caca2617bec9ed389411a5a2904883733e4d3bb8ac13275e9883d25fd",
+    COTTON / "research/derived/australia_central_asia_cotton_era5_daily_seasonality_v0_2.csv": "9ce46a2ab31981ccd8952fd328f5bfd230314857a84ede7a2f38f0bfc30be949",
+    COTTON / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_1_daily.csv": "3fe931e9de5e195835d7f211aefd8d52a5d95d68dad3713df6c0f646e94d561a",
+    COTTON / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_1_daily.csv": "0b2be4b9706cccf56c8328a68283a98b2c7a005e12101cbb5337fe95f7e877f7",
+    COTTON / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_1_daily.csv": "0f4dc5b507c092f28231095143a0a0cb8efb48af094fa2d15f9fddc99f8575d3",
+    COTTON / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_daily.csv": "a7f852a54b1d94987c1a639a6aa5970683b2d62ca5892189732d07450dbc66e8",
+    COTTON / "au_weather/derived/australia_theoretical_weather_stress_index_v0_1_daily.csv": "a977f9be8e79b57ae25b443645f2ca43313369e5050eeee45353a8b9ab3c4331",
+    COTTON / "model_status.json": "b3fbabe71bd15c1bc0ef65d2b4e34f3621a184383c3f89d8a9320a896a2daf0d",
+}
 KEYS = []
 cursor = date(2001, 1, 1)
 while cursor.year == 2001:
     if cursor.month != 2 or cursor.day != 29:
         KEYS.append(cursor.strftime("%m-%d"))
     cursor = date.fromordinal(cursor.toordinal() + 1)
+
+
+def window_keys(start: str, end: str) -> list[str]:
+    start_i = KEYS.index(start)
+    end_i = KEYS.index(end)
+    return KEYS[start_i:end_i + 1] if end_i >= start_i else KEYS[start_i:] + KEYS[:end_i + 1]
 
 
 def digest(path: Path) -> str:
@@ -138,13 +167,16 @@ class PublicDashboardTest(unittest.TestCase):
 
     def test_australia_seasonal_has_no_fabricated_history_and_daily_rebuild(self):
         seasonal = self.payload["seasonal"]["australia"]
-        self.assertEqual(seasonal["current_year"], 2026)
-        self.assertEqual(seasonal["last_year"], 2025)
+        self.assertEqual(seasonal["current_year"], "2026/27")
+        self.assertEqual(seasonal["last_year"], "2025/26")
+        self.assertEqual(seasonal["display_window_start"], "09-01")
+        self.assertEqual(seasonal["display_window_end"], "06-30")
+        self.assertTrue(seasonal["cross_year_axis"])
         for metric in seasonal["metrics"].values():
             self.assertEqual(metric["history_year_count"], 0)
             self.assertTrue(all(value is None for value in metric["history_min"]))
             self.assertTrue(all(value is None for value in metric["history_max"]))
-            self.assertEqual(len(metric["day_keys"]), 365)
+            self.assertEqual(len(metric["day_keys"]), 303)
         with builder.AUSTRALIA_DAILY_PATH.open(encoding="utf-8", newline="") as handle:
             daily = list(csv.DictReader(handle))
         score = seasonal["metrics"]["score"]
@@ -152,41 +184,60 @@ class PublicDashboardTest(unittest.TestCase):
         index = score["day_keys"].index("09-10")
         self.assertEqual(score["current_year"][index], float(expected["2026-09-10"]))
         self.assertEqual(score["last_year"][index], float(expected["2025-09-10"]))
+        self.assertEqual(score["last_year"][score["day_keys"].index("01-01")], float(expected["2026-01-01"]))
         self.assertIsNone(score["current_year"][score["day_keys"].index("09-11")])
+        self.assertIsNone(score["last_year"][score["day_keys"].index("05-01")])
 
     def test_central_asia_10_aois_240_fields_and_null_scores(self):
         watch = self.payload["central_asia_watch"]
         self.assertEqual(watch["aoi_count"], 10)
         self.assertEqual(watch["score_available_count"], 0)
+        self.assertEqual(watch["weather_anomaly_score_available_count"], 10)
+        self.assertEqual(watch["weather_stress_score_available_count"], 0)
         self.assertEqual(len(watch["aois"]), 10)
         source_by = {(row["country"], row["aoi_name"]): row for row in self.central_watch["aois"]}
         for actual in watch["aois"]:
             source = source_by[(actual["country"], actual["aoi_name"])]
+            self.assertEqual(actual["country_display_name"], COUNTRIES_DISPLAY[actual["country"]])
+            self.assertEqual(actual["aoi_display_name"], AOI_DISPLAY[actual["aoi_name"]])
             for variable in VARIABLES:
                 for suffix in ("current", "change_yoy", "percentile", "band"):
                     field = variable + "_" + suffix
                     self.assertEqual(actual[field], source[field])
             self.assertIsNone(actual["weather_stress_score"])
+            components = [Decimal("2") * abs(Decimal(actual[v+"_percentile"]) - Decimal("50")) for v in VARIABLES]
+            expected_score = (sum(components, Decimal("0")) / Decimal("6")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            self.assertEqual(actual["weather_anomaly_score"], float(expected_score))
         self.assertEqual(sum(1 for row in watch["aois"] for v in VARIABLES for s in ("current", "change_yoy", "percentile", "band") if row[v+"_"+s] is not None), 240)
 
-    def test_central_seasonal_is_10_by_6_by_365_and_source_exact(self):
+    def test_central_seasonal_is_10_by_6_cropped_window_and_source_exact(self):
         seasonal = self.payload["central_asia_seasonal"]
         self.assertEqual(len(seasonal), 10)
         by_key = {(row["aoi_name"], row["month_day"]): row for row in self.central_seasonal_rows if row["country"] in {"Kazakhstan", "Kyrgyzstan", "Tajikistan", "Turkmenistan", "Uzbekistan"}}
         self.assertEqual(len(by_key), 10 * 366)
+        cropped = window_keys("03-01", "10-31")
         for country, aoi, aoi_id in CENTRAL_AOI:
             item = seasonal[aoi_id]
             self.assertEqual(len(item["metrics"]), 6)
+            self.assertFalse(item["cross_year_axis"])
+            self.assertEqual(item["display_window_start"], "03-01")
+            self.assertEqual(item["display_window_end"], "10-31")
+            self.assertEqual(item["display_window_status"], "display_window_proxy_not_verified_local_stage_calendar")
             self.assertEqual(item["gap_codes"], by_key[(aoi, "01-01")]["gap_codes"].split(";"))
             for variable in VARIABLES:
                 metric = item["metrics"][variable]
-                self.assertEqual(len(metric["day_keys"]), 365)
-                for i, day in enumerate(KEYS):
+                self.assertEqual(len(metric["day_keys"]), 245)
+                for i, day in enumerate(cropped):
                     src = by_key[(aoi, day)]
                     for out, field in (("history_min", variable+"_hist_min"), ("history_max", variable+"_hist_max"), ("last_year", variable+"_2025"), ("current_year", variable+"_2026")):
                         expected = None if src[field] == "" else float(src[field])
                         self.assertEqual(metric[out][i], expected, (aoi, variable, day, out))
                 self.assertIsNone(metric["current_year"][metric["day_keys"].index("09-11")])
+
+    def test_four_regular_region_axes_are_not_cross_year(self):
+        for region_id in ("china", "us", "brazil", "india"):
+            self.assertFalse(self.payload["seasonal"][region_id]["cross_year_axis"], region_id)
+        self.assertTrue(self.payload["seasonal"]["australia"]["cross_year_axis"])
 
     def test_central_current_cards_and_daily_charts_use_distinct_labels(self):
         current_labels = {
@@ -226,9 +277,13 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertFalse(self.payload["cross_region_weather_comparable"])
         self.assertFalse(self.payload["weather_to_supply_conversion_performed"])
 
+    def test_all_frozen_contract_input_hashes_unchanged(self):
+        for path, expected in FROZEN_INPUT_SHAS.items():
+            self.assertEqual(digest(path), expected, str(path))
+
     def test_page_and_publish_files_are_synced_and_safe(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
-        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "中亚五国天气观察", "10 个 AOI", "综合分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率"):
+        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.3"):
             self.assertIn(phrase, html)
         self.assertNotIn("澳大利亚未接入官方供需数量", html)
         self.assertNotIn("bullish", html.lower())
@@ -244,7 +299,7 @@ class PublicDashboardTest(unittest.TestCase):
     def test_published_data_fetch_is_versioned_for_cache_busting(self):
         for page in (ROOT / "index.html", ROOT / "dist/index.html"):
             html = page.read_text(encoding="utf-8")
-            self.assertIn("fetch('./data.json?v=20260918-v02-supply')", html)
+            self.assertIn("fetch('./data.json?v=20260921-v03-season')", html)
             self.assertNotIn("fetch('./data.json')", html)
 
     def test_temp_builder_is_deterministic(self):

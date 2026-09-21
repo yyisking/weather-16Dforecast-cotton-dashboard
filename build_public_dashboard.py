@@ -18,7 +18,7 @@ DIST = SITE_ROOT / "dist"
 BRIEF_PATH = COTTON_ROOT / "research/derived/cotton_current_supply_decision_brief_v0_2.json"
 AUSTRALIA_LATEST_PATH = COTTON_ROOT / "au_weather/derived/australia_theoretical_weather_stress_index_v0_1_latest.json"
 AUSTRALIA_DAILY_PATH = COTTON_ROOT / "au_weather/derived/australia_theoretical_weather_stress_index_v0_1_daily.csv"
-CENTRAL_ASIA_WATCH_PATH = COTTON_ROOT / "research/derived/central_asia_cotton_current_weather_watch_v0_1.json"
+CENTRAL_ASIA_WATCH_PATH = COTTON_ROOT / "research/derived/central_asia_cotton_current_weather_watch_v0_2.json"
 CENTRAL_ASIA_SEASONAL_PATH = COTTON_ROOT / "research/derived/australia_central_asia_cotton_era5_daily_seasonality_v0_2.csv"
 REGION_PATHS = {
     "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_1_latest.json",
@@ -45,6 +45,16 @@ CENTRAL_ASIA_IDS = {
     "Fergana Region": "uzbekistan_fergana",
     "Syrdarya Region": "uzbekistan_syrdarya",
     "Bukhara Region": "uzbekistan_bukhara",
+}
+CENTRAL_COUNTRY_DISPLAY = {
+    "Kazakhstan": "哈萨克斯坦", "Kyrgyzstan": "吉尔吉斯斯坦", "Tajikistan": "塔吉克斯坦",
+    "Turkmenistan": "土库曼斯坦", "Uzbekistan": "乌兹别克斯坦",
+}
+CENTRAL_AOI_DISPLAY = {
+    "Turkistan Region": "突厥斯坦州", "Jalal-Abad Oblast": "贾拉拉巴德州", "Osh Oblast": "奥什州",
+    "Khatlon Oblast": "哈特隆州", "Sughd Oblast": "索格特州", "Mary Velayat": "马雷州",
+    "Dashoguz Velayat": "达沙古兹州", "Fergana Region": "费尔干纳州", "Syrdarya Region": "锡尔河州",
+    "Bukhara Region": "布哈拉州",
 }
 
 METRIC_META = {
@@ -141,6 +151,16 @@ GEO_DISPLAY = {
 BAND_DISPLAY = {"low": "低度", "mild": "轻度", "moderate": "中度", "high": "高度"}
 CONFIDENCE_DISPLAY = {"low": "低", "medium": "中", "high": "高", "limited": "有限"}
 
+SEASON_WINDOWS = {
+    "China": ("04-01", "11-30", "新疆 04-01—11-30", "verified_stage_scoring_window"),
+    "United States": ("02-01", "11-30", "得州 02-01—11-30", "verified_stage_scoring_window"),
+    "Brazil": ("01-01", "09-30", "巴西 MT 01-01—09-30", "verified_stage_scoring_window"),
+    "India": ("06-01", "12-31", "印度中部雨养带 06-01—12-31", "verified_stage_scoring_window"),
+}
+CENTRAL_WINDOW = ("03-01", "10-31", "03-01—10-31（页面代理窗口；未核实当地作季）",
+                  "display_window_proxy_not_verified_local_stage_calendar")
+AUSTRALIA_WINDOW = ("09-01", "06-30", "澳洲 09-01—次年 06-30", "user_defined_cross_year_display_window")
+
 
 def read_json(path: Path) -> dict:
     with path.open("r", encoding="utf-8") as handle:
@@ -172,6 +192,23 @@ def _calendar_keys() -> list[str]:
     return keys
 
 
+def _window_keys(start: str, end: str) -> list[str]:
+    """Return inclusive month-day keys, with no February 29."""
+    start_month, start_day = (int(part) for part in start.split("-"))
+    end_month, end_day = (int(part) for part in end.split("-"))
+    all_keys = _calendar_keys()
+    start_index = all_keys.index(start)
+    if (end_month, end_day) >= (start_month, start_day):
+        end_index = all_keys.index(end)
+        return all_keys[start_index:end_index + 1]
+    return all_keys[start_index:] + all_keys[:all_keys.index(end) + 1]
+
+
+def _crop(values: list[float | None], all_keys: list[str], wanted: list[str]) -> list[float | None]:
+    by_key = dict(zip(all_keys, values))
+    return [by_key.get(key) for key in wanted]
+
+
 def build_seasonal(geography: str) -> dict:
     """Build daily seasonal bands and current/prior year traces from approved daily files."""
     path = DAILY_PATHS[geography]
@@ -182,7 +219,9 @@ def build_seasonal(geography: str) -> dict:
     if not rows:
         return {"status": "gap", "source": str(path), "metrics": {}}
 
-    keys = _calendar_keys()
+    all_keys = _calendar_keys()
+    window_start, window_end, window_label, window_status = SEASON_WINDOWS[geography]
+    keys = _window_keys(window_start, window_end)
     by_metric_year_day: dict[str, dict[int, dict[str, list[float]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     metric_fields = {"score": "theoretical_weather_stress_index"}
     for _factor_id, _label, field in REGION_META[geography]["factor_fields"]:
@@ -222,14 +261,14 @@ def build_seasonal(geography: str) -> dict:
                 (sum(year_map.get(year, {}).get(key, [])) / len(year_map[year][key]))
                 if year_map.get(year, {}).get(key)
                 else None
-                for key in keys
+                for key in all_keys
             ]
 
         current = year_trace(current_year)
         prior = year_trace(prior_year)
         historical_years = sorted(year for year in year_map if year not in {current_year, prior_year})
         hist_min, hist_max = [], []
-        for key in keys:
+        for key in all_keys:
             values = [
                 sum(year_map[year][key]) / len(year_map[year][key])
                 for year in historical_years
@@ -243,10 +282,10 @@ def build_seasonal(geography: str) -> dict:
         meta.update(
             {
                 "day_keys": keys,
-                "history_min": hist_min,
-                "history_max": hist_max,
-                "last_year": prior,
-                "current_year": current,
+                "history_min": _crop(hist_min, all_keys, keys),
+                "history_max": _crop(hist_max, all_keys, keys),
+                "last_year": _crop(prior, all_keys, keys),
+                "current_year": _crop(current, all_keys, keys),
                 "last_year_label": str(prior_year),
                 "current_year_label": str(current_year),
                 "history_years": historical_years,
@@ -261,17 +300,22 @@ def build_seasonal(geography: str) -> dict:
         "axis": "month_day",
         "current_year": current_year,
         "last_year": prior_year,
+        "display_window_start": window_start,
+        "display_window_end": window_end,
+        "display_window_label": window_label,
+        "display_window_status": window_status,
+        "cross_year_axis": False,
         "metrics": metrics,
     }
 
 
 def build_australia_seasonal() -> dict:
-    """Build the Australia daily traces; no unobserved historical score band is invented."""
+    """Build the Australia 2026/27 and 2025/26 cross-year display axis."""
     if not AUSTRALIA_DAILY_PATH.exists():
         return {"status": "gap", "source": str(AUSTRALIA_DAILY_PATH), "metrics": {}}
     with AUSTRALIA_DAILY_PATH.open("r", encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
-    keys = _calendar_keys()
+    keys = _window_keys(AUSTRALIA_WINDOW[0], AUSTRALIA_WINDOW[1])
     metric_fields = {
         "score": "theoretical_weather_stress_index",
         "low_temperature": "low_temperature_score",
@@ -301,11 +345,25 @@ def build_australia_seasonal() -> dict:
                 except (TypeError, ValueError):
                     pass
     metrics = {}
-    current_year = 2026
-    prior_year = 2025
+    all_keys = _calendar_keys()
+
+    def season_trace(metric: str, season_start: int) -> list[float | None]:
+        values = []
+        for key in keys:
+            month, day = (int(part) for part in key.split("-"))
+            source_year = season_start if month >= 9 else season_start + 1
+            # The frozen V0.1 scoring contract has no May–June score values.
+            if month in (5, 6):
+                values.append(None)
+            else:
+                values.append(year_map[metric].get(source_year, {}).get(key))
+        return values
+
+    current_year = "2026/27"
+    prior_year = "2025/26"
     for metric, meta in ((m, METRIC_META.get(m, {"label": m, "unit": "分", "window": "逐日因子分"})) for m in metric_fields):
-        current = [year_map[metric].get(current_year, {}).get(key) for key in keys]
-        prior = [year_map[metric].get(prior_year, {}).get(key) for key in keys]
+        current = season_trace(metric, 2026)
+        prior = season_trace(metric, 2025)
         metrics[metric] = {
             **dict(meta), "day_keys": keys, "history_min": [None] * len(keys), "history_max": [None] * len(keys),
             "last_year": prior, "current_year": current, "last_year_label": str(prior_year),
@@ -314,7 +372,10 @@ def build_australia_seasonal() -> dict:
         }
     return {
         "status": "available" if metrics else "gap", "source": str(AUSTRALIA_DAILY_PATH.relative_to(COTTON_ROOT)),
-        "axis": "month_day", "current_year": current_year, "last_year": prior_year,
+        "axis": "cross_year_month_day", "current_year": current_year, "last_year": prior_year,
+        "display_window_start": AUSTRALIA_WINDOW[0], "display_window_end": AUSTRALIA_WINDOW[1],
+        "display_window_label": AUSTRALIA_WINDOW[2], "display_window_status": AUSTRALIA_WINDOW[3],
+        "cross_year_axis": True,
         "metrics": metrics,
     }
 
@@ -323,7 +384,9 @@ def build_central_asia_seasonal() -> dict:
     """Copy each Central Asia AOI/variable daily row directly from V0.2 seasonality."""
     if not CENTRAL_ASIA_SEASONAL_PATH.exists():
         return {}
-    keys = _calendar_keys()
+    all_keys = _calendar_keys()
+    window_start, window_end, window_label, window_status = CENTRAL_WINDOW
+    keys = _window_keys(window_start, window_end)
     rows_by_aoi: dict[str, list[dict[str, str]]] = defaultdict(list)
     with CENTRAL_ASIA_SEASONAL_PATH.open("r", encoding="utf-8", newline="") as handle:
         for row in csv.DictReader(handle):
@@ -363,9 +426,13 @@ def build_central_asia_seasonal() -> dict:
                 "lineage": first.get("gap_codes", ""),
             }
         result[CENTRAL_ASIA_IDS[aoi_name]] = {
-            "country": first["country"], "aoi_name": aoi_name,
+            "country": first["country"], "country_display_name": CENTRAL_COUNTRY_DISPLAY[first["country"]],
+            "aoi_name": aoi_name, "aoi_display_name": CENTRAL_AOI_DISPLAY[aoi_name],
             "status": "available", "source": str(CENTRAL_ASIA_SEASONAL_PATH.relative_to(COTTON_ROOT)),
             "axis": "month_day", "current_year": 2026, "last_year": 2025,
+            "display_window_start": window_start, "display_window_end": window_end,
+            "display_window_label": window_label, "display_window_status": window_status,
+            "cross_year_axis": False,
             "metrics": metrics, "gap_codes": first.get("gap_codes", "").split(";") if first.get("gap_codes") else [],
         }
     return result
@@ -524,7 +591,7 @@ def build() -> dict:
     seasonal["australia"] = build_australia_seasonal()
     central_watch = build_central_asia_watch()
     return {
-        "dashboard_id": "cotton_public_supply_weather_dashboard_v0_2",
+        "dashboard_id": "cotton_public_supply_weather_dashboard_v0_3",
         "snapshot_as_of_date": brief["snapshot_as_of_date"],
         "official_report_month": brief["official_report_month"],
         "supply_snapshot_id": brief["source_snapshot_id"],
@@ -549,7 +616,8 @@ def build() -> dict:
             "as_of_weather_date": "2026-09-10", "source_model": "era5",
             "observed_reanalysis_only": True, "forecast_included": False,
             "cross_region_comparable": False, "score_available_count": 0,
-            "aoi_count": 10, "interpretation_warning": "10 个 AOI 仅作当地同期描述观察；无分不是 0 胁迫，不可横向排名。",
+            "weather_anomaly_score_available_count": 10, "weather_stress_score_available_count": 0,
+            "aoi_count": 10, "interpretation_warning": "异常度高只表示当地天气偏离自身常态，不代表更不利、减产更多或可跨 AOI 排名；棉花胁迫分 0/10 可用。",
             "aois": central_watch,
         },
         "central_asia_seasonal": build_central_asia_seasonal(),
