@@ -1,4 +1,4 @@
-# 公开棉花看板 V0.3 展示合同
+# 公开棉花看板 V0.4 展示合同
 
 - 目标：公开展示 USDA FAS 2026 年 9 月六地供需快照（全球与中国、美国、巴西、印度、澳大利亚）、五个评分区（含澳大利亚东部棉区）和中亚十个定性天气观察 AOI。
 - 输入：棉花供需决策简报 V0.2、美国得州/中国新疆/印度中部雨养带/巴西马托格罗索四份 latest JSON、澳洲 latest/daily，以及中亚天气异常度 V0.2 sidecar 和 V0.2 seasonality 输入。
@@ -8,5 +8,7 @@
 - 澳洲供需—天气连接：澳洲评分区详情从 brief V0.2 读取 USDA 产量和期末库存变化；显示千包（480 磅）口径与国内消费变化率缺口，不把天气指数换算为供给数量。
 - 供需表固定六行；中亚 AOI 不进入供需表，仍为描述观察。其 `weather_anomaly_score` 10/10 可用；`weather_stress_score`（棉花胁迫分）10/10 保持 null，不得填成 0 或渲染为 0/100。
 - 季节性页面轴只保留合同窗口：新疆 04—11 月、得州 02—11 月、巴西 MT 01—09 月、印度 06—12 月；澳洲为 2026/27 与 2025/26 的 09 月—次年 06 月跨年作季轴，5—6 月不补分；中亚 03—10 月仅为页面代理窗口，未核实当地作季。
-- 页面 cache key 固定为 `v=20260921-v03-season`。
+- V0.4 季节图固定 cache key 为 `v=20260923-v04-seasonal`。
+- 五个评分区 seasonal payload 的分数 metric 必须声明 `scale_type=fixed_score_0_100`、`scale_min=0`、`scale_max=100` 和“0—100天气胁迫分；不是气象原值”；中亚气象原值 metric 保持 `scale_type=auto_unit`，按真实单位自动缩放。
+- 每个评分 metric 的去年/今年数组必须有等长状态数组和 `active_periods`；状态只可为 `available`、`inactive_stage`、`future`、`source_gap`。历史带遇到 null 必须切断，不能跨缺口连接。
 - 验收：公开页面中的供需值、评分区分数、澳洲官方供需变化、变量、日期、覆盖率、可信度、缺口和中亚季节序列必须逐源可追溯；中亚 `weather_anomaly_score` 应为 10/10 可用，`weather_stress_score`（棉花胁迫分）必须保留 null，不得渲染为 0/100。

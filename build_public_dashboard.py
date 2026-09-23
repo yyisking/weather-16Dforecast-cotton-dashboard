@@ -209,6 +209,63 @@ def _crop(values: list[float | None], all_keys: list[str], wanted: list[str]) ->
     return [by_key.get(key) for key in wanted]
 
 
+STATUS_LABELS = {
+    "available": "有值",
+    "inactive_stage": "该阶段未启用",
+    "future": "今年尚未来临",
+    "source_gap": "源数据缺口",
+}
+
+
+def _compress_periods(keys: list[str], active_keys: set[str]) -> list[dict[str, str]]:
+    """Compress active month-day keys into contiguous display-axis periods."""
+    indices = [index for index, key in enumerate(keys) if key in active_keys]
+    periods: list[dict[str, str]] = []
+    if not indices:
+        return periods
+    start = previous = indices[0]
+    for index in indices[1:]:
+        if index != previous + 1:
+            periods.append({"start": keys[start], "end": keys[previous]})
+            start = index
+        previous = index
+    periods.append({"start": keys[start], "end": keys[previous]})
+    return periods
+
+
+def _status_counts(values: list[str]) -> dict[str, int]:
+    return {status: values.count(status) for status in STATUS_LABELS}
+
+
+def _score_meta(meta: dict, metric: str) -> dict:
+    result = dict(meta)
+    result.update(
+        {
+            "unit": "分",
+            "scale_type": "fixed_score_0_100",
+            "scale_min": 0,
+            "scale_max": 100,
+            "value_semantics": "0—100天气胁迫分；不是气象原值",
+            "blank_value_label": "按状态显示：该阶段未启用／今年尚未来临／源数据缺口",
+            "status_labels": STATUS_LABELS,
+        }
+    )
+    return result
+
+
+def _raw_meta(label: str, unit: str) -> dict:
+    return {
+        "label": label,
+        "unit": unit,
+        "window": "日值",
+        "scale_type": "auto_unit",
+        "scale_min": None,
+        "scale_max": None,
+        "value_semantics": "ERA5当地气象原值；不是0—100天气胁迫分",
+        "blank_value_label": "空值＝源数据缺口；不转换为棉花胁迫分",
+    }
+
+
 def build_seasonal(geography: str) -> dict:
     """Build daily seasonal bands and current/prior year traces from approved daily files."""
     path = DAILY_PATHS[geography]
@@ -223,10 +280,12 @@ def build_seasonal(geography: str) -> dict:
     window_start, window_end, window_label, window_status = SEASON_WINDOWS[geography]
     keys = _window_keys(window_start, window_end)
     by_metric_year_day: dict[str, dict[int, dict[str, list[float]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    active_by_metric: dict[str, set[str]] = defaultdict(set)
     metric_fields = {"score": "theoretical_weather_stress_index"}
     for _factor_id, _label, field in REGION_META[geography]["factor_fields"]:
         metric_fields[_factor_id] = field
     years = set()
+    source_dates: list[date] = []
     for row in rows:
         raw_date = row.get("date") or ""
         try:
@@ -236,6 +295,7 @@ def build_seasonal(geography: str) -> dict:
         if parsed.month == 2 and parsed.day == 29:
             continue
         years.add(parsed.year)
+        source_dates.append(parsed)
         day_key = parsed.strftime("%m-%d")
         for metric, field in metric_fields.items():
             value = row.get(field)
@@ -245,6 +305,7 @@ def build_seasonal(geography: str) -> dict:
                 numeric = float(value)
                 if math.isfinite(numeric):
                     by_metric_year_day[metric][parsed.year][day_key].append(numeric)
+                    active_by_metric[metric].add(day_key)
             except (TypeError, ValueError):
                 continue
     if not years:
@@ -252,6 +313,7 @@ def build_seasonal(geography: str) -> dict:
 
     current_year = max(years)
     prior_year = current_year - 1
+    source_max_date = max(source_dates)
     metrics = {}
     for metric in metric_fields:
         year_map = by_metric_year_day.get(metric, {})
@@ -266,6 +328,25 @@ def build_seasonal(geography: str) -> dict:
 
         current = year_trace(current_year)
         prior = year_trace(prior_year)
+        active_keys = active_by_metric.get(metric, set())
+        current_status = []
+        prior_status = []
+        for index, key in enumerate(all_keys):
+            month, day = (int(part) for part in key.split("-"))
+            if key not in active_keys:
+                current_status.append("inactive_stage")
+                prior_status.append("inactive_stage")
+                continue
+            current_date = date(current_year, month, day)
+            if current_date > source_max_date:
+                current_status.append("future")
+            elif current[index] is None:
+                current_status.append("source_gap")
+            else:
+                current_status.append("available")
+            prior_status.append("available" if prior[index] is not None else "source_gap")
+        current_status = _crop(current_status, all_keys, keys)
+        prior_status = _crop(prior_status, all_keys, keys)
         historical_years = sorted(year for year in year_map if year not in {current_year, prior_year})
         hist_min, hist_max = [], []
         for key in all_keys:
@@ -278,7 +359,7 @@ def build_seasonal(geography: str) -> dict:
             hist_max.append(max(values) if values else None)
         if not any(value is not None for value in current + prior + hist_min + hist_max):
             continue
-        meta = dict(METRIC_META.get(metric, {"label": metric, "unit": "分", "window": "逐日因子分"}))
+        meta = _score_meta(METRIC_META.get(metric, {"label": metric, "unit": "分", "window": "逐日因子分"}), metric)
         meta.update(
             {
                 "day_keys": keys,
@@ -291,6 +372,12 @@ def build_seasonal(geography: str) -> dict:
                 "history_years": historical_years,
                 "history_year_count": len(historical_years),
                 "status": "available" if any(value is not None for value in current) else "historical_only",
+                "last_year_status": prior_status,
+                "current_year_status": current_status,
+                "active_periods": _compress_periods(keys, active_keys),
+                "source_file_max_date": source_max_date.isoformat(),
+                "status_counts": {"last_year": _status_counts(prior_status), "current_year": _status_counts(current_status)},
+                "source_gap_count": prior_status.count("source_gap") + current_status.count("source_gap"),
             }
         )
         metrics[metric] = meta
@@ -305,6 +392,8 @@ def build_seasonal(geography: str) -> dict:
         "display_window_label": window_label,
         "display_window_status": window_status,
         "cross_year_axis": False,
+        "source_file_max_date": source_max_date.isoformat(),
+        "source_gap_count": sum(metric.get("source_gap_count", 0) for metric in metrics.values()),
         "metrics": metrics,
     }
 
@@ -325,7 +414,9 @@ def build_australia_seasonal() -> dict:
         "low_solar": "low_solar_score",
     }
     year_map: dict[str, dict[int, dict[str, float]]] = defaultdict(lambda: defaultdict(dict))
+    active_by_metric: dict[str, set[str]] = defaultdict(set)
     years: set[int] = set()
+    source_dates: list[date] = []
     for row in rows:
         raw_date = row.get("date", "")
         try:
@@ -335,6 +426,7 @@ def build_australia_seasonal() -> dict:
         if parsed.month == 2 and parsed.day == 29:
             continue
         years.add(parsed.year)
+        source_dates.append(parsed)
         for metric, field in metric_fields.items():
             value = row.get(field, "")
             if value not in (None, "", "null", "None"):
@@ -342,10 +434,11 @@ def build_australia_seasonal() -> dict:
                     numeric = float(value)
                     if math.isfinite(numeric):
                         year_map[metric][parsed.year][parsed.strftime("%m-%d")] = numeric
+                        active_by_metric[metric].add(parsed.strftime("%m-%d"))
                 except (TypeError, ValueError):
                     pass
     metrics = {}
-    all_keys = _calendar_keys()
+    source_max_date = max(source_dates)
 
     def season_trace(metric: str, season_start: int) -> list[float | None]:
         values = []
@@ -359,16 +452,41 @@ def build_australia_seasonal() -> dict:
                 values.append(year_map[metric].get(source_year, {}).get(key))
         return values
 
+    def season_status(metric: str, season_start: int, values: list[float | None]) -> list[str]:
+        active_keys = active_by_metric.get(metric, set())
+        statuses = []
+        for index, key in enumerate(keys):
+            month, day = (int(part) for part in key.split("-"))
+            if month in (5, 6) or key not in active_keys:
+                statuses.append("inactive_stage")
+                continue
+            source_year = season_start if month >= 9 else season_start + 1
+            absolute_date = date(source_year, month, day)
+            if season_start == 2026 and absolute_date > source_max_date:
+                statuses.append("future")
+            elif values[index] is None:
+                statuses.append("source_gap")
+            else:
+                statuses.append("available")
+        return statuses
+
     current_year = "2026/27"
     prior_year = "2025/26"
     for metric, meta in ((m, METRIC_META.get(m, {"label": m, "unit": "分", "window": "逐日因子分"})) for m in metric_fields):
         current = season_trace(metric, 2026)
         prior = season_trace(metric, 2025)
+        current_status = season_status(metric, 2026, current)
+        prior_status = season_status(metric, 2025, prior)
         metrics[metric] = {
-            **dict(meta), "day_keys": keys, "history_min": [None] * len(keys), "history_max": [None] * len(keys),
+            **_score_meta(meta, metric), "day_keys": keys, "history_min": [None] * len(keys), "history_max": [None] * len(keys),
             "last_year": prior, "current_year": current, "last_year_label": str(prior_year),
             "current_year_label": str(current_year), "history_years": [], "history_year_count": 0,
             "status": "available" if any(v is not None for v in current) else "gap",
+            "last_year_status": prior_status, "current_year_status": current_status,
+            "active_periods": _compress_periods(keys, active_by_metric.get(metric, set())),
+            "source_file_max_date": source_max_date.isoformat(),
+            "status_counts": {"last_year": _status_counts(prior_status), "current_year": _status_counts(current_status)},
+            "source_gap_count": prior_status.count("source_gap") + current_status.count("source_gap"),
         }
     return {
         "status": "available" if metrics else "gap", "source": str(AUSTRALIA_DAILY_PATH.relative_to(COTTON_ROOT)),
@@ -376,6 +494,8 @@ def build_australia_seasonal() -> dict:
         "display_window_start": AUSTRALIA_WINDOW[0], "display_window_end": AUSTRALIA_WINDOW[1],
         "display_window_label": AUSTRALIA_WINDOW[2], "display_window_status": AUSTRALIA_WINDOW[3],
         "cross_year_axis": True,
+        "source_file_max_date": source_max_date.isoformat(),
+        "source_gap_count": sum(metric.get("source_gap_count", 0) for metric in metrics.values()),
         "metrics": metrics,
     }
 
@@ -418,7 +538,7 @@ def build_central_asia_seasonal() -> dict:
                 prior[index] = numeric(f"{variable}_2025")
                 current[index] = numeric(f"{variable}_2026")
             metrics[variable] = {
-                "label": labels[variable][0], "unit": labels[variable][1], "window": "日值",
+                **_raw_meta(labels[variable][0], labels[variable][1]),
                 "day_keys": keys, "history_min": hist_min, "history_max": hist_max,
                 "last_year": prior, "current_year": current, "last_year_label": "2025",
                 "current_year_label": "2026", "history_years": list(range(1991, 2025)),

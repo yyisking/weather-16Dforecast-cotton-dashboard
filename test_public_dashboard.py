@@ -239,6 +239,162 @@ class PublicDashboardTest(unittest.TestCase):
             self.assertFalse(self.payload["seasonal"][region_id]["cross_year_axis"], region_id)
         self.assertTrue(self.payload["seasonal"]["australia"]["cross_year_axis"])
 
+    def test_score_scale_status_arrays_and_source_gap_counts_are_independent(self):
+        region_inputs = {
+            "China": ("china", builder.DAILY_PATHS["China"], {"score": "theoretical_weather_stress_index", **{x[0]: x[2] for x in builder.REGION_META["China"]["factor_fields"]}}),
+            "United States": ("us", builder.DAILY_PATHS["United States"], {"score": "theoretical_weather_stress_index", **{x[0]: x[2] for x in builder.REGION_META["United States"]["factor_fields"]}}),
+            "Brazil": ("brazil", builder.DAILY_PATHS["Brazil"], {"score": "theoretical_weather_stress_index", **{x[0]: x[2] for x in builder.REGION_META["Brazil"]["factor_fields"]}}),
+            "India": ("india", builder.DAILY_PATHS["India"], {"score": "theoretical_weather_stress_index", **{x[0]: x[2] for x in builder.REGION_META["India"]["factor_fields"]}}),
+            "Australia": ("australia", builder.AUSTRALIA_DAILY_PATH, {"score": "theoretical_weather_stress_index", **{x[0]: x[2] for x in builder.REGION_META["Australia"]["factor_fields"]}}),
+        }
+
+        def compress(keys, active):
+            indexes = [i for i, key in enumerate(keys) if key in active]
+            result = []
+            if not indexes:
+                return result
+            start = previous = indexes[0]
+            for index in indexes[1:]:
+                if index != previous + 1:
+                    result.append({"start": keys[start], "end": keys[previous]})
+                    start = index
+                previous = index
+            result.append({"start": keys[start], "end": keys[previous]})
+            return result
+
+        for geography, (region_id, path, fields) in region_inputs.items():
+            with path.open(encoding="utf-8", newline="") as handle:
+                rows = list(csv.DictReader(handle))
+            by_year_key = {}
+            active = {metric: set() for metric in fields}
+            source_dates = []
+            for row in rows:
+                parsed = date.fromisoformat(row["date"][:10])
+                if parsed.month == 2 and parsed.day == 29:
+                    continue
+                source_dates.append(parsed)
+                for metric, field in fields.items():
+                    value = row.get(field, "")
+                    if value not in (None, ""):
+                        by_year_key.setdefault((metric, parsed.year, parsed.strftime("%m-%d")), []).append(float(value))
+                        active[metric].add(parsed.strftime("%m-%d"))
+            source_max = max(source_dates)
+            seasonal = self.payload["seasonal"][region_id]
+            current_start = int(str(seasonal["current_year"])[:4])
+            prior_start = current_start - 1
+            for metric, field in fields.items():
+                output = seasonal["metrics"][metric]
+                self.assertEqual(output["scale_type"], "fixed_score_0_100")
+                self.assertEqual(output["scale_min"], 0)
+                self.assertEqual(output["scale_max"], 100)
+                self.assertIn("不是气象原值", output["value_semantics"])
+                keys = output["day_keys"]
+                self.assertEqual(len(output["last_year"]), len(keys))
+                self.assertEqual(len(output["current_year"]), len(keys))
+                self.assertEqual(len(output["last_year_status"]), len(keys))
+                self.assertEqual(len(output["current_year_status"]), len(keys))
+                self.assertEqual(output["active_periods"], compress(keys, active[metric]))
+                expected_gap_count = 0
+                for year_label, year_start, values, statuses in (
+                    ("last_year", prior_start, output["last_year"], output["last_year_status"]),
+                    ("current_year", current_start, output["current_year"], output["current_year_status"]),
+                ):
+                    for index, key in enumerate(keys):
+                        month, day = (int(part) for part in key.split("-"))
+                        source_year = year_start
+                        if geography == "Australia" and month < 9:
+                            source_year += 1
+                        source_values = by_year_key.get((metric, source_year, key), [])
+                        expected_value = sum(source_values) / len(source_values) if source_values else None
+                        if expected_value is None:
+                            self.assertIsNone(values[index], (geography, metric, year_label, key))
+                        else:
+                            self.assertEqual(values[index], expected_value, (geography, metric, year_label, key))
+                        if key not in active[metric] or (geography == "Australia" and month in (5, 6)):
+                            expected_status = "inactive_stage"
+                        elif year_label == "current_year" and date(source_year, month, day) > source_max:
+                            expected_status = "future"
+                        elif expected_value is None:
+                            expected_status = "source_gap"
+                        else:
+                            expected_status = "available"
+                        self.assertEqual(statuses[index], expected_status, (geography, metric, year_label, key))
+                        expected_gap_count += expected_status == "source_gap"
+                self.assertEqual(output["source_gap_count"], expected_gap_count, (geography, metric))
+
+        xinjiang = self.payload["seasonal"]["china"]
+        self.assertEqual(xinjiang["metrics"]["high_heat"]["active_periods"], [{"start": "06-01", "end": "08-31"}])
+        self.assertEqual(xinjiang["metrics"]["low_temperature"]["active_periods"], [{"start": "04-01", "end": "05-31"}, {"start": "09-01", "end": "11-30"}])
+        self.assertEqual(xinjiang["metrics"]["score"]["current_year_status"][xinjiang["metrics"]["score"]["day_keys"].index("09-14")], "future")
+        australia = self.payload["seasonal"]["australia"]
+        self.assertEqual(australia["metrics"]["low_temperature"]["active_periods"], [{"start": "09-01", "end": "10-31"}, {"start": "03-01", "end": "04-30"}])
+        self.assertEqual(australia["metrics"]["score"]["current_year_status"][australia["metrics"]["score"]["day_keys"].index("05-01")], "inactive_stage")
+        self.assertEqual(australia["metrics"]["score"]["current_year_status"][australia["metrics"]["score"]["day_keys"].index("09-11")], "future")
+
+    def test_central_raw_units_and_segmented_history_band_contract(self):
+        for item in self.payload["central_asia_seasonal"].values():
+            for metric in item["metrics"].values():
+                self.assertEqual(metric["scale_type"], "auto_unit")
+                self.assertIsNone(metric["scale_min"])
+                self.assertIsNone(metric["scale_max"])
+                self.assertIn("气象原值", metric["value_semantics"])
+        html = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertIn("scale_type==='fixed_score_0_100'", html)
+        self.assertIn("const bandPaths=", html)
+        self.assertIn("end-start>=1", html)
+        self.assertIn("source_gap", html)
+        self.assertIn("灰色＝该阶段未启用", html)
+
+    def test_central_raw_blank_label_and_scored_scale_metadata(self):
+        raw_blank_label = "空值＝源数据缺口；不转换为棉花胁迫分"
+        for item in self.payload["central_asia_seasonal"].values():
+            for metric in item["metrics"].values():
+                self.assertEqual(metric["blank_value_label"], raw_blank_label)
+                self.assertEqual(metric["scale_type"], "auto_unit")
+        for region in self.payload["seasonal"].values():
+            for metric in region["metrics"].values():
+                self.assertEqual(metric["scale_type"], "fixed_score_0_100")
+                self.assertEqual(metric["scale_min"], 0)
+                self.assertEqual(metric["scale_max"], 100)
+
+    def test_null_band_and_status_change_boundaries_are_real_segments(self):
+        html = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertIn("const finiteValue=v=>v!==null&&v!==undefined&&Number.isFinite(Number(v));", html)
+        self.assertIn("const valid=finiteValue(upper[i])&&finiteValue(lower[i])", html)
+        self.assertIn("if(next!==current)", html)
+
+        australia = self.payload["seasonal"]["australia"]["metrics"]["low_temperature"]
+        keys = australia["day_keys"]
+        status = australia["current_year_status"]
+        status_runs = []
+        start = 0
+        current = status[0]
+        for index in range(1, len(status) + 1):
+            next_status = status[index] if index < len(status) else None
+            if next_status != current:
+                status_runs.append((keys[start], keys[index - 1], current))
+                start = index
+                current = next_status
+        self.assertEqual(status_runs, [
+            ("09-01", "09-10", "available"),
+            ("09-11", "10-31", "future"),
+            ("11-01", "02-28", "inactive_stage"),
+            ("03-01", "04-30", "future"),
+            ("05-01", "06-30", "inactive_stage"),
+        ])
+
+        xinjiang = self.payload["seasonal"]["china"]["metrics"]["low_temperature"]
+        history_runs = []
+        start = None
+        for index, value in enumerate(xinjiang["history_min"] + [None]):
+            finite = value is not None
+            if finite and start is None:
+                start = index
+            if not finite and start is not None:
+                history_runs.append((xinjiang["day_keys"][start], xinjiang["day_keys"][index - 1]))
+                start = None
+        self.assertEqual(history_runs, [("04-01", "05-31"), ("09-01", "11-30")])
+
     def test_central_current_cards_and_daily_charts_use_distinct_labels(self):
         current_labels = {
             "temperature_2m_max": "14日平均最高温",
@@ -283,7 +439,7 @@ class PublicDashboardTest(unittest.TestCase):
 
     def test_page_and_publish_files_are_synced_and_safe(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
-        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.3"):
+        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.4"):
             self.assertIn(phrase, html)
         self.assertNotIn("澳大利亚未接入官方供需数量", html)
         self.assertNotIn("bullish", html.lower())
@@ -299,7 +455,7 @@ class PublicDashboardTest(unittest.TestCase):
     def test_published_data_fetch_is_versioned_for_cache_busting(self):
         for page in (ROOT / "index.html", ROOT / "dist/index.html"):
             html = page.read_text(encoding="utf-8")
-            self.assertIn("fetch('./data.json?v=20260921-v03-season')", html)
+            self.assertIn("fetch('./data.json?v=20260923-v04-seasonal')", html)
             self.assertNotIn("fetch('./data.json')", html)
 
     def test_temp_builder_is_deterministic(self):

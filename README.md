@@ -1,4 +1,4 @@
-# 棉花供需与天气胁迫公开看板 V0.3
+# 棉花供需与天气胁迫公开看板 V0.4
 
 本目录是独立的公开展示站点，不覆盖 `cotton/dashboard/` 旧看板。
 
@@ -17,4 +17,4 @@
 ## 构建
 
 运行 `python3 build_public_dashboard.py`，同步生成根目录和 `dist/` 的 `data.json`，并确保两份 `index.html` 字节一致；页面文件为 `dist/index.html`。
-本次 V0.3 更新的页面使用固定 payload cache key `v=20260921-v03-season`。
+本次 V0.4 更新的页面使用固定 payload cache key `v=20260923-v04-seasonal`。评分图固定 0—100 轴；灰色表示阶段未启用，未来值与源数据缺口分别标注。中亚气象原值图继续按 °C、mm、MJ/m²、kPa 等真实单位自动缩放。
