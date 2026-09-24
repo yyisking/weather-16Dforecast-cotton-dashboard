@@ -47,10 +47,6 @@ AOI_DISPLAY = {
     "Bukhara Region": "布哈拉州",
 }
 FROZEN_INPUT_SHAS = {
-    COTTON / "cn_xj_weather/points_daily.csv": "258a19cc8e9b17d4965c30693ee09a2c6669ffe35755f8b56e8733cfc4ef9464",
-    COTTON / "us_weather/points_daily.csv": "22cbc448a30a92a73db49805ff61486257ca8f4f69bfed2596b1f2715ce2e569",
-    COTTON / "br_weather/points_daily.csv": "f3494033ec4f169dd262428e5871fdb1b2a022c0880754a40c23cddb161be022",
-    COTTON / "in_weather/points_daily.csv": "025ebe73147b84683daa869f4bf54f3025a304bca993ac37654db24ea9db85b8",
     COTTON / "research/raw/australia_central_asia_era5_daily_v0_1/source_manifest_v0_1.json": "1e74722ab611a8d980ce5d2d68f022f1b1f97c5119f461515b9b25e799906353",
     COTTON / "research/derived/australia_central_asia_cotton_point_crosswalk_v0_1.csv": "bf20f1fb7c4997853abdee508beb2987c4bf5945e1abdb8fc4f4992ef9e56faa",
     COTTON / "research/raw/australia_central_asia_era5_daily_v0_1/01_moree_era5_daily.json": "a10af801c90b7bdf6000dc0efa485805fcefd96ec2ed32c612f19b90ebfe9ad6",
@@ -71,6 +67,13 @@ FROZEN_INPUT_SHAS = {
     COTTON / "au_weather/derived/australia_theoretical_weather_stress_index_v0_1_daily.csv": "a977f9be8e79b57ae25b443645f2ca43313369e5050eeee45353a8b9ab3c4331",
     COTTON / "model_status.json": "b3fbabe71bd15c1bc0ef65d2b4e34f3621a184383c3f89d8a9320a896a2daf0d",
 }
+FROZEN_RAW_POINT_SEMANTIC_SHAS = {
+    "China": "076c54ffeedeeb81654002ead5fd4a60a5b792565035b4d780e6da1299e265cb",
+    "United States": "bbf5830bce45f1890b9a2bf3e6db095a47e834741d32379d04f963c02ac6cb47",
+    "Brazil": "ab070ba5e37c48d3bc8a5cb3b6102dcdb465150c64bc10005343ba4b1bc7d3ed",
+    "India": "138c34130e6c31da80f55fc9c0ff50dd9b60dc5c38e1f9773657a7ccd7b55d5e",
+}
+RAW_POINT_HASH_FIELDS = ("date", "tmax", "tmin", "precip", "sw_rad")
 KEYS = []
 cursor = date(2001, 1, 1)
 while cursor.year == 2001:
@@ -92,6 +95,69 @@ def digest(path: Path) -> str:
     for child in sorted(p for p in path.rglob("*") if p.is_file()):
         h.update(child.relative_to(path).as_posix().encode() + b"\0" + child.read_bytes() + b"\0")
     return h.hexdigest()
+
+
+def raw_point_semantic_hash(config: dict, source_rows: list[dict[str, str]]) -> str:
+    """Hash exactly the point/day/weather semantics consumed by raw seasonality.
+
+    The contract uses configured point IDs and date/tmax/tmin/precip/sw_rad only.
+    It covers historical season years, the prior year, and current-year displayed
+    dates through the frozen cutoff, including each exposure's preceding 13 days.
+    Rows are canonicalized by point/date; absent or unusable values encode as
+    the explicit token <NULL>. Rows after the cutoff are outside this hash.
+    """
+    start, end = config["window"][:2]
+    display_keys = builder._window_keys(start, end)
+    display_dates = set()
+    for year in (*config["history_years"], 2025, 2026):
+        for key in display_keys:
+            month, day = (int(part) for part in key.split("-"))
+            actual = date(year, month, day)
+            if year == 2026 and actual > config["cutoff"]:
+                continue
+            display_dates.add(actual)
+    required_dates = {
+        displayed_day - timedelta(days=offset)
+        for displayed_day in display_dates
+        for offset in range(14)
+    }
+    if not required_dates or max(required_dates) > config["cutoff"]:
+        raise AssertionError("raw semantic hash range exceeds the frozen display cutoff")
+
+    points = tuple(sorted(config["points"]))
+    dates = tuple(sorted(required_dates))
+    records: dict[str, dict[date, dict[str, float | None]]] = {point: {} for point in points}
+    point_set = set(points)
+    for row in source_rows:
+        point = row.get("point_id")
+        if point not in point_set:
+            continue
+        try:
+            parsed = date.fromisoformat((row.get("date") or "")[:10])
+        except ValueError:
+            continue
+        if parsed not in required_dates:
+            continue
+        records[point][parsed] = {field: builder._number(row.get(field)) for field in RAW_POINT_HASH_FIELDS[1:]}
+
+    contract = {
+        "contract": "cotton-public-dashboard-raw-points-v1",
+        "points": points,
+        "fields": RAW_POINT_HASH_FIELDS,
+        "required_dates": tuple(day.isoformat() for day in dates),
+    }
+    hasher = hashlib.sha256()
+    hasher.update((json.dumps(contract, ensure_ascii=True, separators=(",", ":")) + "\n").encode("ascii"))
+    for point in points:
+        for day in dates:
+            row = records[point].get(day, {})
+            tokens = []
+            for field in RAW_POINT_HASH_FIELDS[1:]:
+                value = row.get(field)
+                tokens.append("<NULL>" if value is None else float(value).hex())
+            canonical = (point, day.isoformat(), *tokens)
+            hasher.update((json.dumps(canonical, ensure_ascii=True, separators=(",", ":")) + "\n").encode("ascii"))
+    return hasher.hexdigest()
 
 
 def protected_paths() -> tuple[Path, ...]:
@@ -625,7 +691,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertFalse(self.payload["cross_region_weather_comparable"])
         self.assertFalse(self.payload["weather_to_supply_conversion_performed"])
 
-    def test_v06_production_weighted_composite_is_independently_rebuilt(self):
+    def test_v07_production_weighted_composite_is_independently_rebuilt(self):
         composite = self.payload["five_region_production_weighted_weather_stress_display"]
         source_rows = {row["geography"]: row for row in self.brief["rows"]}
         geographies = ("China", "United States", "Brazil", "India", "Australia")
@@ -697,7 +763,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertEqual(metric["history_min"], [min((history_expected[str(year)][i] for year in range(2015, 2025) if history_expected[str(year)][i] is not None), default=None) for i in range(len(metric["day_keys"]))])
         self.assertEqual(metric["history_max"], [max((history_expected[str(year)][i] for year in range(2015, 2025) if history_expected[str(year)][i] is not None), default=None) for i in range(len(metric["day_keys"]))])
 
-    def test_v06_weighted_gate_and_missing_region_do_not_fill_zero(self):
+    def test_v07_weighted_gate_and_missing_region_do_not_fill_zero(self):
         weights = {"China": .36, "United States": .14, "Brazil": .20, "India": .26, "Australia": .04}
         below = builder._weighted_production_day({"china": None, "us": 10.0, "brazil": None, "india": None, "australia": None}, weights)
         self.assertIsNone(below["value"]); self.assertEqual(below["status"], "coverage_below_gate")
@@ -707,28 +773,96 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertNotIn("brazil", available["valid_region_ids"])
         self.assertFalse(self.payload["five_region_production_weighted_weather_stress_display"]["not_unified_model"] is False)
 
-    def test_v06_frontend_contract_and_cache_key(self):
+    def test_v07_frontend_contract_and_cache_key(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         self.assertIn("five_region_production_weighted_weather_stress_display", html)
-        self.assertIn("五区产量加权天气胁迫", html)
+        self.assertIn("全球棉花五大种植区域天气胁迫总评分（产区产量加权）", html)
         self.assertIn("历史带不含补造的澳洲历史分", html)
         self.assertIn("覆盖不足不按0处理", html)
         self.assertIn("M.nonnegative?Math.max(0,lo-extra):lo-extra", html)
-        self.assertIn("v=20260923-v06-production-weighted", html)
+        self.assertIn("v=20260924-v07-display-hierarchy", html)
         self.assertNotIn("v=20260923-v05-raw-weather", html)
         self.assertIn("data-chart-region=\"${weightedId}\"", html)
         self.assertIn("const first=app.querySelector('.hero')", html)
         self.assertIn("M.solar_display_status", html)
 
+    def test_v07_label_score_titles_raw_explanation_and_collapsed_weights(self):
+        title = "全球棉花五大种植区域天气胁迫总评分（产区产量加权）"
+        composite = self.payload["five_region_production_weighted_weather_stress_display"]
+        self.assertEqual(composite["id"], "five_region_production_weighted_weather_stress_display")
+        self.assertEqual(composite["label"], title)
+        self.assertEqual(composite["seasonal_metric"]["label"], title)
+        self.assertEqual(composite["current_score"], 34.203232814344204)
+
+        html = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertIn("<title>棉花供需与天气胁迫看板 V0.7</title>", html)
+        self.assertIn("<h1>棉花供需与天气胁迫看板 V0.7</h1>", html)
+        self.assertIn('"dashboard_id": "cotton_public_supply_weather_dashboard_v0_7"', json.dumps(self.payload, ensure_ascii=False))
+        self.assertIn("${r.name} · 天气因子原始数据", html)
+        self.assertIn("${r.name} · 模型天气胁迫单因子评分", html)
+        self.assertNotIn("当前原始天气（14日）", html)
+        self.assertNotIn("模型天气胁迫因子", html)
+        self.assertIn("温度/短波辐射为截至当日过去14天日值平均；降水为截至当日过去14天累计。", html)
+        self.assertIn("四项均先按点位计算，再按冻结棉区点位网络空间聚合", html)
+        self.assertIn("class=\"chartable production-weighted-score\"", html)
+        self.assertIn("font-size:clamp(3.5rem,8vw,6.25rem)", html)
+        self.assertIn("font-size:clamp(3rem,12vw,4rem)", html)
+        self.assertIn("<details class=\"production-weighted-details\"><summary>产量加权详情</summary>", html)
+        details_markup = re.search(r'<details class="production-weighted-details">(.*?)</details>', html, flags=re.DOTALL)
+        self.assertIsNotNone(details_markup)
+        self.assertIn("<table>", details_markup.group(1))
+        self.assertNotIn("open", details_markup.group(0).split(">", 1)[0])
+        self.assertIn('data-chart-title="${productionWeightedLabel}"', html)
+
     def test_all_frozen_contract_input_hashes_unchanged(self):
         for path, expected in FROZEN_INPUT_SHAS.items():
             self.assertEqual(digest(path), expected, str(path))
 
+    def test_frozen_raw_point_semantic_hashes_and_cutoff_append_invariance(self):
+        for geography, expected in FROZEN_RAW_POINT_SEMANTIC_SHAS.items():
+            config = builder.RAW_POINT_CONFIG[geography]
+            with config["path"].open(encoding="utf-8", newline="") as handle:
+                rows = list(csv.DictReader(handle))
+            actual = raw_point_semantic_hash(config, rows)
+            self.assertEqual(actual, expected, geography)
+
+            point = config["points"][0]
+            virtual_append = {
+                "point_id": point,
+                "date": (config["cutoff"] + timedelta(days=1)).isoformat(),
+                "tmax": "999", "tmin": "-999", "precip": "888", "sw_rad": "777",
+            }
+            self.assertEqual(
+                raw_point_semantic_hash(config, rows + [virtual_append]),
+                actual,
+                f"post-cutoff append changed the frozen raw semantic hash for {geography}",
+            )
+
+    def test_v07_payload_matches_v06_outside_version_labels_and_source_max_metadata(self):
+        previous = json.loads(subprocess.check_output(["git", "show", "20b703f:data.json"], cwd=ROOT, text=True))
+
+        def normalize(payload):
+            result = json.loads(json.dumps(payload))
+            result["dashboard_id"] = "<versioned dashboard id>"
+            composite = result["five_region_production_weighted_weather_stress_display"]
+            composite["label"] = "<versioned aggregate label>"
+            composite["seasonal_metric"]["label"] = "<versioned aggregate label>"
+            for region_id in ("china", "us", "brazil", "india"):
+                season = result["seasonal"][region_id]
+                season["raw_weather"]["source_file_max_date"] = "<append-only source max>"
+                for metric in season["raw_metrics"].values():
+                    metric["source_file_max_date"] = "<append-only source max>"
+                for metric in season["raw_weather"]["metrics"].values():
+                    metric["source_file_max_date"] = "<append-only source max>"
+            return result
+
+        self.assertEqual(normalize(previous), normalize(self.payload))
+
     def test_page_and_publish_files_are_synced_and_safe(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
-        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "五区产量加权天气胁迫", "共同截止", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.6", "当前原始天气（14日）", "14日平均日最高温", "14日平均日最低温", "14日累计降水", "14日平均日短波辐射", "MJ/m²/日", "天气原值与理论分数均未换算为 USDA 产量", "太阳辐射模型状态："):
+        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "全球棉花五大种植区域天气胁迫总评分（产区产量加权）", "产量加权详情", "共同截止", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.7", "天气因子原始数据", "模型天气胁迫单因子评分", "14日平均日最高温", "14日平均日最低温", "14日累计降水", "14日平均日短波辐射", "MJ/m²/日", "天气原值与理论分数均未换算为 USDA 产量", "太阳辐射模型状态："):
             self.assertIn(phrase, html)
-        self.assertIn("<title>棉花供需与天气胁迫看板 V0.6</title>", html)
+        self.assertIn("<title>棉花供需与天气胁迫看板 V0.7</title>", html)
         self.assertNotIn("看板 V0.5", html)
         self.assertIn("正式 global_numeric_weather_score 仍未生成；上方五区产量加权分仅为展示合成，未执行天气到供给数量的换算。", html)
         self.assertIn("M.solar_display_status", html)
@@ -760,7 +894,7 @@ class PublicDashboardTest(unittest.TestCase):
     def test_published_data_fetch_is_versioned_for_cache_busting(self):
         for page in (ROOT / "index.html", ROOT / "dist/index.html"):
             html = page.read_text(encoding="utf-8")
-            self.assertIn("fetch('./data.json?v=20260923-v06-production-weighted')", html)
+            self.assertIn("fetch('./data.json?v=20260924-v07-display-hierarchy')", html)
             self.assertNotIn("fetch('./data.json')", html)
 
     def test_temp_builder_is_deterministic(self):

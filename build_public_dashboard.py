@@ -1016,7 +1016,7 @@ def build_central_asia_watch() -> list[dict]:
 
 
 PRODUCTION_WEIGHTED_ID = "five_region_production_weighted_weather_stress_display"
-PRODUCTION_WEIGHTED_NAME = "五区产量加权天气胁迫"
+PRODUCTION_WEIGHTED_NAME = "全球棉花五大种植区域天气胁迫总评分（产区产量加权）"
 PRODUCTION_WEIGHTED_REGIONS = ("China", "United States", "Brazil", "India", "Australia")
 PRODUCTION_WEIGHTED_REGION_IDS = {
     "China": "china", "United States": "us", "Brazil": "brazil", "India": "india", "Australia": "australia",
@@ -1178,7 +1178,7 @@ def build() -> dict:
         seasonal[region_id]["raw_weather"] = raw
     central_watch = build_central_asia_watch()
     return {
-        "dashboard_id": "cotton_public_supply_weather_dashboard_v0_6",
+        "dashboard_id": "cotton_public_supply_weather_dashboard_v0_7",
         "snapshot_as_of_date": brief["snapshot_as_of_date"],
         "official_report_month": brief["official_report_month"],
         "supply_snapshot_id": brief["source_snapshot_id"],

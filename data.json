@@ -1,5 +1,5 @@
 {
-  "dashboard_id": "cotton_public_supply_weather_dashboard_v0_6",
+  "dashboard_id": "cotton_public_supply_weather_dashboard_v0_7",
   "snapshot_as_of_date": "2026-09-16",
   "official_report_month": "September 2026",
   "supply_snapshot_id": "cotton_supply_balance_weather_overlay_v0_2",
@@ -11247,7 +11247,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-23",
+          "source_file_max_date": "2026-09-24",
           "display_cutoff_date": "2026-09-13",
           "source_gap_count": 0,
           "status_counts": {
@@ -13036,7 +13036,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-23",
+          "source_file_max_date": "2026-09-24",
           "display_cutoff_date": "2026-09-13",
           "source_gap_count": 0,
           "status_counts": {
@@ -14825,7 +14825,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-23",
+          "source_file_max_date": "2026-09-24",
           "display_cutoff_date": "2026-09-13",
           "source_gap_count": 0,
           "status_counts": {
@@ -16614,7 +16614,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-23",
+          "source_file_max_date": "2026-09-24",
           "display_cutoff_date": "2026-09-13",
           "source_gap_count": 0,
           "status_counts": {
@@ -16647,7 +16647,7 @@
         "display_window_label": "新疆 04-01—11-30",
         "display_window_status": "verified_stage_scoring_window",
         "cross_year_axis": false,
-        "source_file_max_date": "2026-09-23",
+        "source_file_max_date": "2026-09-24",
         "display_cutoff_date": "2026-09-13",
         "metrics": {
           "tmax_14d_mean": {
@@ -18418,7 +18418,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-23",
+            "source_file_max_date": "2026-09-24",
             "display_cutoff_date": "2026-09-13",
             "source_gap_count": 0,
             "status_counts": {
@@ -20207,7 +20207,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-23",
+            "source_file_max_date": "2026-09-24",
             "display_cutoff_date": "2026-09-13",
             "source_gap_count": 0,
             "status_counts": {
@@ -21996,7 +21996,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-23",
+            "source_file_max_date": "2026-09-24",
             "display_cutoff_date": "2026-09-13",
             "source_gap_count": 0,
             "status_counts": {
@@ -23785,7 +23785,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-23",
+            "source_file_max_date": "2026-09-24",
             "display_cutoff_date": "2026-09-13",
             "source_gap_count": 0,
             "status_counts": {
@@ -39145,7 +39145,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-23",
+          "source_file_max_date": "2026-09-24",
           "display_cutoff_date": "2026-09-13",
           "source_gap_count": 0,
           "status_counts": {
@@ -41347,7 +41347,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-23",
+          "source_file_max_date": "2026-09-24",
           "display_cutoff_date": "2026-09-13",
           "source_gap_count": 0,
           "status_counts": {
@@ -43549,7 +43549,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-23",
+          "source_file_max_date": "2026-09-24",
           "display_cutoff_date": "2026-09-13",
           "source_gap_count": 0,
           "status_counts": {
@@ -45751,7 +45751,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-23",
+          "source_file_max_date": "2026-09-24",
           "display_cutoff_date": "2026-09-13",
           "source_gap_count": 0,
           "status_counts": {
@@ -45784,7 +45784,7 @@
         "display_window_label": "得州 02-01—11-30",
         "display_window_status": "verified_stage_scoring_window",
         "cross_year_axis": false,
-        "source_file_max_date": "2026-09-23",
+        "source_file_max_date": "2026-09-24",
         "display_cutoff_date": "2026-09-13",
         "metrics": {
           "tmax_14d_mean": {
@@ -47968,7 +47968,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-23",
+            "source_file_max_date": "2026-09-24",
             "display_cutoff_date": "2026-09-13",
             "source_gap_count": 0,
             "status_counts": {
@@ -50170,7 +50170,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-23",
+            "source_file_max_date": "2026-09-24",
             "display_cutoff_date": "2026-09-13",
             "source_gap_count": 0,
             "status_counts": {
@@ -52372,7 +52372,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-23",
+            "source_file_max_date": "2026-09-24",
             "display_cutoff_date": "2026-09-13",
             "source_gap_count": 0,
             "status_counts": {
@@ -54574,7 +54574,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-23",
+            "source_file_max_date": "2026-09-24",
             "display_cutoff_date": "2026-09-13",
             "source_gap_count": 0,
             "status_counts": {
@@ -70439,7 +70439,7 @@
               "end": "09-30"
             }
           ],
-          "source_file_max_date": "2026-09-22",
+          "source_file_max_date": "2026-09-23",
           "display_cutoff_date": "2026-09-16",
           "source_gap_count": 0,
           "status_counts": {
@@ -72431,7 +72431,7 @@
               "end": "09-30"
             }
           ],
-          "source_file_max_date": "2026-09-22",
+          "source_file_max_date": "2026-09-23",
           "display_cutoff_date": "2026-09-16",
           "source_gap_count": 0,
           "status_counts": {
@@ -74423,7 +74423,7 @@
               "end": "09-30"
             }
           ],
-          "source_file_max_date": "2026-09-22",
+          "source_file_max_date": "2026-09-23",
           "display_cutoff_date": "2026-09-16",
           "source_gap_count": 0,
           "status_counts": {
@@ -76415,7 +76415,7 @@
               "end": "09-30"
             }
           ],
-          "source_file_max_date": "2026-09-22",
+          "source_file_max_date": "2026-09-23",
           "display_cutoff_date": "2026-09-16",
           "source_gap_count": 0,
           "status_counts": {
@@ -76448,7 +76448,7 @@
         "display_window_label": "巴西 MT 01-01—09-30",
         "display_window_status": "verified_stage_scoring_window",
         "cross_year_axis": false,
-        "source_file_max_date": "2026-09-22",
+        "source_file_max_date": "2026-09-23",
         "display_cutoff_date": "2026-09-16",
         "metrics": {
           "tmax_14d_mean": {
@@ -78422,7 +78422,7 @@
                 "end": "09-30"
               }
             ],
-            "source_file_max_date": "2026-09-22",
+            "source_file_max_date": "2026-09-23",
             "display_cutoff_date": "2026-09-16",
             "source_gap_count": 0,
             "status_counts": {
@@ -80414,7 +80414,7 @@
                 "end": "09-30"
               }
             ],
-            "source_file_max_date": "2026-09-22",
+            "source_file_max_date": "2026-09-23",
             "display_cutoff_date": "2026-09-16",
             "source_gap_count": 0,
             "status_counts": {
@@ -82406,7 +82406,7 @@
                 "end": "09-30"
               }
             ],
-            "source_file_max_date": "2026-09-22",
+            "source_file_max_date": "2026-09-23",
             "display_cutoff_date": "2026-09-16",
             "source_gap_count": 0,
             "status_counts": {
@@ -84398,7 +84398,7 @@
                 "end": "09-30"
               }
             ],
-            "source_file_max_date": "2026-09-22",
+            "source_file_max_date": "2026-09-23",
             "display_cutoff_date": "2026-09-16",
             "source_gap_count": 0,
             "status_counts": {
@@ -92261,7 +92261,7 @@
               "end": "12-31"
             }
           ],
-          "source_file_max_date": "2026-09-23",
+          "source_file_max_date": "2026-09-24",
           "display_cutoff_date": "2026-09-13",
           "source_gap_count": 0,
           "status_counts": {
@@ -93840,7 +93840,7 @@
               "end": "12-31"
             }
           ],
-          "source_file_max_date": "2026-09-23",
+          "source_file_max_date": "2026-09-24",
           "display_cutoff_date": "2026-09-13",
           "source_gap_count": 0,
           "status_counts": {
@@ -95419,7 +95419,7 @@
               "end": "12-31"
             }
           ],
-          "source_file_max_date": "2026-09-23",
+          "source_file_max_date": "2026-09-24",
           "display_cutoff_date": "2026-09-13",
           "source_gap_count": 0,
           "status_counts": {
@@ -96998,7 +96998,7 @@
               "end": "12-31"
             }
           ],
-          "source_file_max_date": "2026-09-23",
+          "source_file_max_date": "2026-09-24",
           "display_cutoff_date": "2026-09-13",
           "source_gap_count": 0,
           "status_counts": {
@@ -97031,7 +97031,7 @@
         "display_window_label": "印度中部雨养带 06-01—12-31",
         "display_window_status": "verified_stage_scoring_window",
         "cross_year_axis": false,
-        "source_file_max_date": "2026-09-23",
+        "source_file_max_date": "2026-09-24",
         "display_cutoff_date": "2026-09-13",
         "metrics": {
           "tmax_14d_mean": {
@@ -98592,7 +98592,7 @@
                 "end": "12-31"
               }
             ],
-            "source_file_max_date": "2026-09-23",
+            "source_file_max_date": "2026-09-24",
             "display_cutoff_date": "2026-09-13",
             "source_gap_count": 0,
             "status_counts": {
@@ -100171,7 +100171,7 @@
                 "end": "12-31"
               }
             ],
-            "source_file_max_date": "2026-09-23",
+            "source_file_max_date": "2026-09-24",
             "display_cutoff_date": "2026-09-13",
             "source_gap_count": 0,
             "status_counts": {
@@ -101750,7 +101750,7 @@
                 "end": "12-31"
               }
             ],
-            "source_file_max_date": "2026-09-23",
+            "source_file_max_date": "2026-09-24",
             "display_cutoff_date": "2026-09-13",
             "source_gap_count": 0,
             "status_counts": {
@@ -103329,7 +103329,7 @@
                 "end": "12-31"
               }
             ],
-            "source_file_max_date": "2026-09-23",
+            "source_file_max_date": "2026-09-24",
             "display_cutoff_date": "2026-09-13",
             "source_gap_count": 0,
             "status_counts": {
@@ -134741,7 +134741,7 @@
   },
   "five_region_production_weighted_weather_stress_display": {
     "id": "five_region_production_weighted_weather_stress_display",
-    "label": "五区产量加权天气胁迫",
+    "label": "全球棉花五大种植区域天气胁迫总评分（产区产量加权）",
     "display_only": true,
     "not_calibrated": true,
     "not_loss_percent": true,
@@ -134811,7 +134811,7 @@
     "current_status": "available",
     "seasonal_metric": {
       "id": "five_region_production_weighted_weather_stress_display",
-      "label": "五区产量加权天气胁迫",
+      "label": "全球棉花五大种植区域天气胁迫总评分（产区产量加权）",
       "unit": "分",
       "window": "逐日产量权重展示合成",
       "scale_type": "fixed_score_0_100",
