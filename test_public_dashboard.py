@@ -657,8 +657,8 @@ class PublicDashboardTest(unittest.TestCase):
         current_labels = {
             "temperature_2m_max": "14日平均日最高温",
             "temperature_2m_min": "14日平均日最低温",
-            "precipitation_sum": "14日累计降水",
-            "shortwave_radiation_sum": "14日平均日短波辐射",
+            "precipitation_sum": "TP累计降水量（14天累计滚动值）",
+            "shortwave_radiation_sum": "SWd日短波辐射（14日移动平均）",
             "et0_fao_evapotranspiration": "14日累计参考蒸散",
             "vapour_pressure_deficit_max": "14日平均最大VPD",
         }
@@ -806,7 +806,8 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("四项均先按点位计算，再按冻结棉区点位网络空间聚合", html)
         self.assertIn("tmax_14d_mean:'Tmax日最高温度（14天移动平均）'", html)
         self.assertIn("tmin_14d_mean:'Tmin日最低温度（14天移动平均）'", html)
-        self.assertIn("precip_14d_sum:'Pculm'", html)
+        self.assertIn("precip_14d_sum:'TP累计降水量（14天累计滚动值）'", html)
+        self.assertIn("sw_rad_14d_mean:'SWd日短波辐射（14日移动平均）'", html)
         self.assertIn("const displayLabel=rawMetricDisplayLabels[metricId]||M.label", html)
         self.assertIn('data-chart-title="${escapeHtml(r.name)} · ${escapeHtml(displayLabel)}"', html)
         self.assertIn("class=\"chartable production-weighted-score\"", html)
@@ -890,7 +891,7 @@ class PublicDashboardTest(unittest.TestCase):
 
     def test_page_and_publish_files_are_synced_and_safe(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
-        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "全球棉花五大种植区域天气胁迫总评分（产区产量加权）", "产量加权详情", "共同截止", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.7", "天气因子原始数据", "模型天气胁迫单因子评分", "Tmax日最高温度（14天移动平均）", "Tmin日最低温度（14天移动平均）", "Pculm", "14日平均日短波辐射", "MJ/m²/日", "天气原值与理论分数均未换算为 USDA 产量", "太阳辐射模型状态："):
+        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "全球棉花五大种植区域天气胁迫总评分（产区产量加权）", "产量加权详情", "共同截止", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.7", "天气因子原始数据", "模型天气胁迫单因子评分", "Tmax日最高温度（14天移动平均）", "Tmin日最低温度（14天移动平均）", "TP累计降水量（14天累计滚动值）", "SWd日短波辐射（14日移动平均）", "MJ/m²/日", "天气原值与理论分数均未换算为 USDA 产量", "太阳辐射模型状态："):
             self.assertIn(phrase, html)
         self.assertIn("<title>棉花供需与天气胁迫看板 V0.7</title>", html)
         self.assertNotIn("看板 V0.5", html)
