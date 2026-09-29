@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import json
 import csv
+import hashlib
 import math
 from collections import defaultdict
 from datetime import date, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 
@@ -22,13 +24,13 @@ CENTRAL_ASIA_WATCH_PATH = COTTON_ROOT / "research/derived/central_asia_cotton_cu
 CENTRAL_ASIA_SEASONAL_PATH = COTTON_ROOT / "research/derived/australia_central_asia_cotton_era5_daily_seasonality_v0_2.csv"
 REGION_PATHS = {
     "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_1_latest.json",
-    "China": COTTON_ROOT / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_1_latest.json",
+    "China": COTTON_ROOT / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_2_latest.json",
     "India": COTTON_ROOT / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_latest.json",
     "Brazil": COTTON_ROOT / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_1_latest.json",
 }
 
 DAILY_PATHS = {
-    "China": COTTON_ROOT / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_1_daily.csv",
+    "China": COTTON_ROOT / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_2_daily.csv",
     "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_1_daily.csv",
     "Brazil": COTTON_ROOT / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_1_daily.csv",
     "India": COTTON_ROOT / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_daily.csv",
@@ -171,7 +173,7 @@ RAW_POINT_CONFIG = {
         "points": ("xj_shihezi", "xj_shawan", "xj_kuitun", "xj_changji", "xj_hutubi", "xj_bole", "xj_jinghe", "xj_kashgar", "xj_shache", "xj_bachu", "xj_aksu", "xj_awat", "xj_kuqa", "xj_shaya", "xj_korla", "xj_yuli", "xj_luntai", "xj_turpan"),
         "weights": {p: 1.0 / 18.0 for p in ("xj_shihezi", "xj_shawan", "xj_kuitun", "xj_changji", "xj_hutubi", "xj_bole", "xj_jinghe", "xj_kashgar", "xj_shache", "xj_bachu", "xj_aksu", "xj_awat", "xj_kuqa", "xj_shaya", "xj_korla", "xj_yuli", "xj_luntai", "xj_turpan")},
         "window": SEASON_WINDOWS["China"],
-        "cutoff": date(2026, 9, 13),
+        "cutoff": date(2026, 9, 29),
         "history_years": list(range(2005, 2025)),
         "solar_status": "observed_only_excluded_pending_dedup",
     },
@@ -217,11 +219,16 @@ AUSTRALIA_ERA5_FILES = (
 )
 AUSTRALIA_RAW_DIR = COTTON_ROOT / "research/raw/australia_central_asia_era5_daily_v0_1"
 AUSTRALIA_MANIFEST_PATH = AUSTRALIA_RAW_DIR / "source_manifest_v0_1.json"
+CENTRAL_ASIA_RETRY_MANIFEST_PATH = COTTON_ROOT / "research/raw/central_asia_era5_gap_retry_v0_1/source_manifest_v0_1.json"
 AUSTRALIA_CROSSWALK_PATH = COTTON_ROOT / "research/derived/australia_central_asia_cotton_point_crosswalk_v0_1.csv"
 AUSTRALIA_EXPECTED_UNITS = {
     "temperature_2m_max": "°C", "temperature_2m_min": "°C", "precipitation_sum": "mm",
     "shortwave_radiation_sum": "MJ/m²", "et0_fao_evapotranspiration": "mm", "vapour_pressure_deficit_max": "kPa",
 }
+CENTRAL_ASIA_VARIABLES = tuple(AUSTRALIA_EXPECTED_UNITS)
+CENTRAL_ASIA_MEAN_VARIABLES = frozenset((
+    "temperature_2m_max", "temperature_2m_min", "vapour_pressure_deficit_max",
+))
 
 
 def read_json(path: Path) -> dict:
@@ -442,6 +449,22 @@ def build_seasonal(geography: str) -> dict:
                 "source_gap_count": prior_status.count("source_gap") + current_status.count("source_gap"),
             }
         )
+        if geography == "China" and metric in {"low_temperature", "high_heat"}:
+            if metric == "low_temperature":
+                primary = [{"start": "04-01", "end": "05-31"}, {"start": "09-01", "end": "11-30"}]
+                secondary = [{"start": "06-01", "end": "08-31"}]
+            else:
+                primary = [{"start": "06-01", "end": "08-31"}]
+                secondary = [{"start": "04-01", "end": "05-31"}, {"start": "09-01", "end": "11-30"}]
+            meta.update({
+                "display_role": "continuous_three_phase_temperature_factor_score",
+                "blank_value_label": "今年线只画到数据截止日；空白只表示未来日期或真实源数据缺口，不是阶段排除。",
+                "primary_weight_periods": primary,
+                "secondary_weight_periods": secondary,
+                "secondary_weight": 0.5,
+                "stage_weight_note": "新疆V0.2全生长期连续计分；主要敏感阶段沿用原权重，其他阶段以0.5暂定次要权重纳入综合分。",
+                "theoretical_not_calibrated": True,
+            })
         metrics[metric] = meta
     return {
         "status": "available" if metrics else "gap",
@@ -839,6 +862,152 @@ def build_raw_weather() -> dict:
     return result
 
 
+def _central_asia_raw_payloads() -> dict[str, dict]:
+    """Load the ten frozen Central Asia ERA5 responses with manifest checks."""
+    original = read_json(AUSTRALIA_MANIFEST_PATH)
+    retry = read_json(CENTRAL_ASIA_RETRY_MANIFEST_PATH)
+    if original.get("model") != "era5" or retry.get("model_requested") != "era5":
+        raise ValueError("Central Asia raw manifests must declare ERA5")
+    if original.get("source_start_date") != "1991-01-01" or original.get("source_end_date") != "2026-09-10":
+        raise ValueError("Central Asia original manifest date coverage changed")
+    if retry.get("date_start") != "1991-01-01" or retry.get("date_end") != "2026-09-10":
+        raise ValueError("Central Asia retry manifest date coverage changed")
+
+    entries: list[tuple[dict, str, str, str]] = []
+    for entry in original.get("raw_responses", []):
+        if entry.get("aoi_name") in CENTRAL_ASIA_IDS:
+            entries.append((entry, "raw_response_path", "raw_response_bytes", "raw_response_sha256"))
+    for entry in retry.get("targets", []):
+        entries.append((entry, "output_path", "response_bytes", "response_sha256"))
+    if {entry[0].get("aoi_name") for entry in entries} != set(CENTRAL_ASIA_IDS):
+        raise ValueError("Central Asia raw bundle does not contain the frozen ten AOIs")
+
+    payloads: dict[str, dict] = {}
+    for entry, path_field, bytes_field, sha_field in entries:
+        if entry.get("status") != "complete_response":
+            raise ValueError(f"Central Asia response is not complete: {entry.get('aoi_name')}")
+        raw_path = Path(entry[path_field])
+        path = raw_path if raw_path.is_absolute() else COTTON_ROOT.parent / raw_path
+        raw = path.read_bytes()
+        if len(raw) != int(entry[bytes_field]) or hashlib.sha256(raw).hexdigest() != entry[sha_field]:
+            raise ValueError(f"Central Asia raw response protection mismatch: {entry.get('aoi_name')}")
+        payload = json.loads(raw.decode("utf-8"))
+        daily = payload.get("daily", {})
+        days = daily.get("time", [])
+        if len(days) != 13037 or days[:1] != ["1991-01-01"] or days[-1:] != ["2026-09-10"]:
+            raise ValueError(f"Central Asia raw date coverage changed: {entry.get('aoi_name')}")
+        if len(set(days)) != len(days):
+            raise ValueError(f"Central Asia raw dates are not unique: {entry.get('aoi_name')}")
+        if payload.get("daily_units", {}).get("time") != "iso8601":
+            raise ValueError(f"Central Asia time unit changed: {entry.get('aoi_name')}")
+        for variable, unit in AUSTRALIA_EXPECTED_UNITS.items():
+            values = daily.get(variable)
+            if payload.get("daily_units", {}).get(variable) != unit or not isinstance(values, list) or len(values) != len(days):
+                raise ValueError(f"Central Asia variable contract changed: {entry.get('aoi_name')}/{variable}")
+        payloads[entry["aoi_name"]] = payload
+    return payloads
+
+
+def _central_rolling_value(daily: dict, indexes: dict[date, int], variable: str, end: date) -> float | None:
+    """Rebuild one complete trailing-14-day statistic; never fill a gap with zero."""
+    indexes_for_window = [indexes.get(end - timedelta(days=offset)) for offset in range(13, -1, -1)]
+    if any(index is None for index in indexes_for_window):
+        return None
+    values = [daily[variable][index] for index in indexes_for_window]
+    if any(value is None or isinstance(value, bool) or not isinstance(value, (int, float))
+           or not math.isfinite(float(value)) for value in values):
+        return None
+    total = math.fsum(float(value) for value in values)
+    return total / 14.0 if variable in CENTRAL_ASIA_MEAN_VARIABLES else total
+
+
+def _central_midrank(value: float | None, history: list[float]) -> float | None:
+    if value is None or len(history) != 34:
+        return None
+    less = sum(item < value for item in history)
+    equal = sum(item == value for item in history)
+    return 100.0 * (less + 0.5 * equal) / len(history)
+
+
+def _central_anomaly_score(values: dict[str, float | None], history: dict[str, list[float]]) -> float | None:
+    """Use the accepted three-decimal percentile inputs and half-up two-decimal score."""
+    percentiles = [_central_midrank(values.get(variable), history[variable]) for variable in CENTRAL_ASIA_VARIABLES]
+    if any(value is None for value in percentiles):
+        return None
+    rounded_percentiles = [Decimal(f"{value:.3f}") for value in percentiles if value is not None]
+    score = sum((Decimal("2") * abs(value - Decimal("50")) for value in rounded_percentiles), Decimal("0"))
+    return float((score / Decimal(len(CENTRAL_ASIA_VARIABLES))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
+def _central_anomaly_metric(payload: dict, keys: list[str]) -> dict:
+    """Build the same six-variable local 14-day anomaly diagnostic for every display day."""
+    daily = payload["daily"]
+    indexes = {date.fromisoformat(day): index for index, day in enumerate(daily["time"])}
+    aggregates: dict[int, dict[str, dict[str, float | None]]] = {}
+    for year in range(1991, 2027):
+        by_key: dict[str, dict[str, float | None]] = {}
+        for key in keys:
+            month, day = (int(part) for part in key.split("-"))
+            end = date(year, month, day)
+            by_key[key] = {
+                variable: _central_rolling_value(daily, indexes, variable, end)
+                for variable in CENTRAL_ASIA_VARIABLES
+            }
+        aggregates[year] = by_key
+
+    history_scores: dict[int, list[float | None]] = {year: [] for year in range(1991, 2025)}
+    last_year: list[float | None] = []
+    current_year: list[float | None] = []
+    current_status: list[str] = []
+    cutoff = date(2026, 9, 10)
+    for key in keys:
+        baseline = {
+            variable: [aggregates[year][key][variable] for year in range(1991, 2025)
+                       if aggregates[year][key][variable] is not None]
+            for variable in CENTRAL_ASIA_VARIABLES
+        }
+        for year in range(1991, 2025):
+            history_scores[year].append(_central_anomaly_score(aggregates[year][key], baseline))
+        last_year.append(_central_anomaly_score(aggregates[2025][key], baseline))
+        month, day = (int(part) for part in key.split("-"))
+        actual = date(2026, month, day)
+        if actual > cutoff:
+            current_year.append(None)
+            current_status.append("future")
+        else:
+            value = _central_anomaly_score(aggregates[2026][key], baseline)
+            current_year.append(value)
+            current_status.append("available" if value is not None else "source_gap")
+
+    history_min = [min((history_scores[year][index] for year in history_scores
+                        if history_scores[year][index] is not None), default=None)
+                   for index in range(len(keys))]
+    history_max = [max((history_scores[year][index] for year in history_scores
+                        if history_scores[year][index] is not None), default=None)
+                   for index in range(len(keys))]
+    last_status = ["available" if value is not None else "source_gap" for value in last_year]
+    return {
+        "label": "天气异常度",
+        "unit": "分",
+        "window": "截至当日过去14天",
+        "aggregation": "六变量14天滚动值相对该AOI 1991—2024当地同期百分位的绝对偏离均值",
+        "scale_type": "fixed_score_0_100", "scale_min": 0, "scale_max": 100,
+        "value_semantics": "0—100当地天气异常度；不是棉花胁迫、减产或跨AOI排名",
+        "blank_value_label": "空值＝今年尚未来临或源数据缺口；不代表0异常",
+        "day_keys": keys, "history_min": history_min, "history_max": history_max,
+        "last_year": last_year, "current_year": current_year,
+        "last_year_label": "2025", "current_year_label": "2026",
+        "history_years": list(range(1991, 2025)), "history_year_count": 34,
+        "history_reference_mode": "in_sample_local_same_window_1991_2024_midrank",
+        "percentile_input_rounding": "three_decimals_before_score",
+        "score_rounding": "ROUND_HALF_UP_two_decimals",
+        "status": "available", "last_year_status": last_status, "current_year_status": current_status,
+        "status_counts": {"last_year": _status_counts(last_status), "current_year": _status_counts(current_status)},
+        "display_cutoff_date": cutoff.isoformat(),
+        "cross_region_comparable": False, "weather_stress_score": None,
+    }
+
+
 def build_central_asia_seasonal() -> dict:
     """Copy each Central Asia AOI/variable daily row directly from V0.2 seasonality."""
     if not CENTRAL_ASIA_SEASONAL_PATH.exists():
@@ -851,6 +1020,7 @@ def build_central_asia_seasonal() -> dict:
         for row in csv.DictReader(handle):
             if row.get("country") in {"Kazakhstan", "Kyrgyzstan", "Tajikistan", "Turkmenistan", "Uzbekistan"}:
                 rows_by_aoi[row["aoi_name"]].append(row)
+    raw_payloads = _central_asia_raw_payloads()
     labels = {
         "temperature_2m_max": ("日最高温", "°C"), "temperature_2m_min": ("日最低温", "°C"),
         "precipitation_sum": ("日降水", "mm"), "shortwave_radiation_sum": ("日短波辐射", "MJ/m²"),
@@ -884,6 +1054,7 @@ def build_central_asia_seasonal() -> dict:
                 "history_year_count": 34, "status": "available",
                 "lineage": first.get("gap_codes", ""),
             }
+        metrics["weather_anomaly_score"] = _central_anomaly_metric(raw_payloads[aoi_name], keys)
         result[CENTRAL_ASIA_IDS[aoi_name]] = {
             "country": first["country"], "country_display_name": CENTRAL_COUNTRY_DISPLAY[first["country"]],
             "aoi_name": aoi_name, "aoi_display_name": CENTRAL_AOI_DISPLAY[aoi_name],

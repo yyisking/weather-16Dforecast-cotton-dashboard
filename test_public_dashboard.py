@@ -61,6 +61,7 @@ FROZEN_INPUT_SHAS = {
     COTTON / "research/derived/australia_central_asia_cotton_variable_watch_v0_2.csv": "04af922caca2617bec9ed389411a5a2904883733e4d3bb8ac13275e9883d25fd",
     COTTON / "research/derived/australia_central_asia_cotton_era5_daily_seasonality_v0_2.csv": "9ce46a2ab31981ccd8952fd328f5bfd230314857a84ede7a2f38f0bfc30be949",
     COTTON / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_1_daily.csv": "3fe931e9de5e195835d7f211aefd8d52a5d95d68dad3713df6c0f646e94d561a",
+    COTTON / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_2_daily.csv": "ba7b6e2cf02fab2ee40e833d879cb4c15b2975b94aa7ec1cf5adad03023492da",
     COTTON / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_1_daily.csv": "0b2be4b9706cccf56c8328a68283a98b2c7a005e12101cbb5337fe95f7e877f7",
     COTTON / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_1_daily.csv": "0f4dc5b507c092f28231095143a0a0cb8efb48af094fa2d15f9fddc99f8575d3",
     COTTON / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_daily.csv": "a7f852a54b1d94987c1a639a6aa5970683b2d62ca5892189732d07450dbc66e8",
@@ -68,7 +69,7 @@ FROZEN_INPUT_SHAS = {
     COTTON / "model_status.json": "b3fbabe71bd15c1bc0ef65d2b4e34f3621a184383c3f89d8a9320a896a2daf0d",
 }
 FROZEN_RAW_POINT_SEMANTIC_SHAS = {
-    "China": "076c54ffeedeeb81654002ead5fd4a60a5b792565035b4d780e6da1299e265cb",
+    "China": "fd5beeeb644ee0f9434226c4af9adee828eefd59ce42468c507da60d4c7dec4a",
     "United States": "bbf5830bce45f1890b9a2bf3e6db095a47e834741d32379d04f963c02ac6cb47",
     "Brazil": "ab070ba5e37c48d3bc8a5cb3b6102dcdb465150c64bc10005343ba4b1bc7d3ed",
     "India": "138c34130e6c31da80f55fc9c0ff50dd9b60dc5c38e1f9773657a7ccd7b55d5e",
@@ -248,6 +249,93 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertGreaterEqual(len(unavailable), 1)
         self.assertTrue(all(factor["status"] == "not_available_or_inactive" for factor in unavailable))
 
+    def test_xinjiang_v02_three_phase_temperature_scores_are_independently_rebuilt(self):
+        points = tuple(builder.RAW_POINT_CONFIG["China"]["points"])
+        north = {"xj_shihezi", "xj_shawan", "xj_kuitun", "xj_changji", "xj_hutubi", "xj_bole", "xj_jinghe"}
+        weights = {
+            "north": {
+                4: (2.5, .5, 1.0, 1.5), 5: (2.0, .5, 1.0, 1.0), 6: (.5, 1.5, .5, 0), 7: (.5, 2.5, .5, 0),
+                8: (.5, 2.0, .5, 0), 9: (2.0, .5, 1.5, 0), 10: (2.5, .5, 2.0, 0), 11: (2.0, .5, 2.0, 0),
+            },
+            "other": {
+                4: (2.0, .5, 1.0, 1.5), 5: (1.5, .5, 1.0, 1.0), 6: (.5, 2.0, .5, 0), 7: (.5, 2.5, .5, 0),
+                8: (.5, 1.5, .5, 0), 9: (1.5, .5, 1.5, 0), 10: (2.0, .5, 2.0, 0), 11: (1.5, .5, 2.0, 0),
+            },
+        }
+        records = {point: {} for point in points}
+        with (COTTON / "cn_xj_weather/points_daily.csv").open(encoding="utf-8", newline="") as handle:
+            for row in csv.DictReader(handle):
+                point = row.get("point_id")
+                if point in records:
+                    records[point][date.fromisoformat(row["date"])] = {
+                        field: (None if row.get(field, "") == "" else float(row[field]))
+                        for field in ("tmax", "tmin", "precip", "gust_max")
+                    }
+
+        def exposure(point, day, field, mode):
+            values = []
+            for offset in range(13, -1, -1):
+                row = records[point].get(day - timedelta(days=offset))
+                value = None if row is None else row[field]
+                if value is None:
+                    return None
+                values.append(value)
+            if mode == "mean":
+                return math.fsum(values) / 14
+            if mode == "sum":
+                return math.fsum(values)
+            return max(values)
+
+        def tail_score(value, references, direction):
+            valid = [reference for reference in references if reference is not None]
+            self.assertGreaterEqual(len(valid), 10)
+            less = sum(reference < value for reference in valid)
+            equal = sum(reference == value for reference in valid)
+            percentile = (less + .5 * equal) / len(valid)
+            return 200 * max(0, percentile - .5) if direction == "high" else 200 * max(0, .5 - percentile)
+
+        output_rows = {}
+        with builder.DAILY_PATHS["China"].open(encoding="utf-8", newline="") as handle:
+            for row in csv.DictReader(handle):
+                if row["date"] in {"2026-04-15", "2026-07-15", "2026-09-13"}:
+                    output_rows[row["date"]] = row
+        factor_specs = (
+            ("low_temperature", "tmin", "mean", "low"),
+            ("high_heat", "tmax", "mean", "high"),
+            ("excess_rain", "precip", "sum", "high"),
+            ("spring_wind", "gust_max", "max", "high"),
+        )
+        for target in (date(2026, 4, 15), date(2026, 7, 15), date(2026, 9, 13)):
+            point_scores = {}
+            for point in points:
+                point_scores[point] = []
+                for _factor, field, mode, direction in factor_specs:
+                    value = exposure(point, target, field, mode)
+                    references = [exposure(point, date(year, target.month, target.day), field, mode) for year in range(2005, target.year)]
+                    point_scores[point].append(tail_score(value, references, direction))
+            component_scores = []
+            for point in points:
+                group = "north" if point in north else "other"
+                month_weights = weights[group][target.month]
+                component_scores.append(math.fsum(weight * score for weight, score in zip(month_weights, point_scores[point])) / math.fsum(month_weights))
+            expected_total = math.fsum(component_scores) / len(component_scores)
+            row = output_rows[target.isoformat()]
+            self.assertAlmostEqual(float(row["theoretical_weather_stress_index"]), expected_total, places=9)
+            for index, (factor, _field, _mode, _direction) in enumerate(factor_specs[:2]):
+                expected_factor = math.fsum(point_scores[point][index] for point in points) / len(points)
+                self.assertAlmostEqual(float(row[f"{factor}_score"]), expected_factor, places=9)
+                self.assertNotEqual(row[f"{factor}_score"], "")
+            self.assertEqual(float(row["factor_weight_coverage"]), 1.0)
+
+        china = self.payload["seasonal"]["china"]["metrics"]
+        for factor in ("low_temperature", "high_heat"):
+            metric = china[factor]
+            self.assertEqual(metric["display_role"], "continuous_three_phase_temperature_factor_score")
+            self.assertEqual(metric["secondary_weight"], .5)
+            self.assertEqual(metric["active_periods"], [{"start": "04-01", "end": "11-30"}])
+            self.assertNotIn("inactive_stage", metric["current_year_status"])
+            self.assertTrue(all(value is not None for value in metric["history_min"]))
+
     def test_australia_seasonal_has_no_fabricated_history_and_daily_rebuild(self):
         seasonal = self.payload["seasonal"]["australia"]
         self.assertEqual(seasonal["current_year"], "2026/27")
@@ -296,7 +384,7 @@ class PublicDashboardTest(unittest.TestCase):
             self.assertEqual(actual["weather_anomaly_score"], float(expected_score))
         self.assertEqual(sum(1 for row in watch["aois"] for v in VARIABLES for s in ("current", "change_yoy", "percentile", "band") if row[v+"_"+s] is not None), 240)
 
-    def test_central_seasonal_is_10_by_6_cropped_window_and_source_exact(self):
+    def test_central_seasonal_is_10_by_6_raw_plus_anomaly_cropped_and_source_exact(self):
         seasonal = self.payload["central_asia_seasonal"]
         self.assertEqual(len(seasonal), 10)
         by_key = {(row["aoi_name"], row["month_day"]): row for row in self.central_seasonal_rows if row["country"] in {"Kazakhstan", "Kyrgyzstan", "Tajikistan", "Turkmenistan", "Uzbekistan"}}
@@ -304,7 +392,8 @@ class PublicDashboardTest(unittest.TestCase):
         cropped = window_keys("03-01", "10-31")
         for country, aoi, aoi_id in CENTRAL_AOI:
             item = seasonal[aoi_id]
-            self.assertEqual(len(item["metrics"]), 6)
+            self.assertEqual(len(item["metrics"]), 7)
+            self.assertIn("weather_anomaly_score", item["metrics"])
             self.assertFalse(item["cross_year_axis"])
             self.assertEqual(item["display_window_start"], "03-01")
             self.assertEqual(item["display_window_end"], "10-31")
@@ -319,6 +408,80 @@ class PublicDashboardTest(unittest.TestCase):
                         expected = None if src[field] == "" else float(src[field])
                         self.assertEqual(metric[out][i], expected, (aoi, variable, day, out))
                 self.assertIsNone(metric["current_year"][metric["day_keys"].index("09-11")])
+
+    def test_central_anomaly_seasonality_is_independently_rebuilt_from_raw(self):
+        original_manifest = json.loads((COTTON / "research/raw/australia_central_asia_era5_daily_v0_1/source_manifest_v0_1.json").read_text(encoding="utf-8"))
+        retry_manifest = json.loads((COTTON / "research/raw/central_asia_era5_gap_retry_v0_1/source_manifest_v0_1.json").read_text(encoding="utf-8"))
+        entries = {}
+        for entry in original_manifest["raw_responses"]:
+            if entry["aoi_name"] in AOI_DISPLAY:
+                entries[entry["aoi_name"]] = (entry, "raw_response_path", "raw_response_bytes", "raw_response_sha256")
+        for entry in retry_manifest["targets"]:
+            entries[entry["aoi_name"]] = (entry, "output_path", "response_bytes", "response_sha256")
+        self.assertEqual(set(entries), set(AOI_DISPLAY))
+        mean_variables = {"temperature_2m_max", "temperature_2m_min", "vapour_pressure_deficit_max"}
+        cutoff = date(2026, 9, 10)
+
+        for _country, aoi, aoi_id in CENTRAL_AOI:
+            entry, path_field, bytes_field, sha_field = entries[aoi]
+            raw_path = Path(entry[path_field])
+            source_path = raw_path if raw_path.is_absolute() else COTTON.parent / raw_path
+            raw = source_path.read_bytes()
+            self.assertEqual(len(raw), int(entry[bytes_field]))
+            self.assertEqual(hashlib.sha256(raw).hexdigest(), entry[sha_field])
+            daily = json.loads(raw.decode("utf-8"))["daily"]
+            indexes = {date.fromisoformat(day): index for index, day in enumerate(daily["time"])}
+
+            def aggregate(year, key, variable):
+                month, day = (int(part) for part in key.split("-"))
+                end = date(year, month, day)
+                values = [daily[variable][indexes[end - timedelta(days=offset)]] for offset in range(13, -1, -1)]
+                self.assertTrue(all(value is not None and math.isfinite(float(value)) for value in values))
+                total = math.fsum(float(value) for value in values)
+                return total / 14.0 if variable in mean_variables else total
+
+            metric = self.payload["central_asia_seasonal"][aoi_id]["metrics"]["weather_anomaly_score"]
+            self.assertEqual(metric["day_keys"], window_keys("03-01", "10-31"))
+            self.assertEqual(metric["history_years"], list(range(1991, 2025)))
+            self.assertEqual(metric["history_year_count"], 34)
+            self.assertEqual(metric["history_reference_mode"], "in_sample_local_same_window_1991_2024_midrank")
+            self.assertEqual(len(metric["current_year"]), 245)
+
+            for index, key in enumerate(metric["day_keys"]):
+                history = {
+                    variable: [aggregate(year, key, variable) for year in range(1991, 2025)]
+                    for variable in VARIABLES
+                }
+
+                def score(year):
+                    components = []
+                    for variable in VARIABLES:
+                        value = aggregate(year, key, variable)
+                        baseline = history[variable]
+                        less = sum(item < value for item in baseline)
+                        equal = sum(item == value for item in baseline)
+                        percentile = Decimal(f"{100.0 * (less + 0.5 * equal) / len(baseline):.3f}")
+                        components.append(Decimal("2") * abs(percentile - Decimal("50")))
+                    return float((sum(components, Decimal("0")) / Decimal("6")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+                expected_history = [score(year) for year in range(1991, 2025)]
+                self.assertEqual(metric["history_min"][index], min(expected_history), (aoi, key, "history_min"))
+                self.assertEqual(metric["history_max"][index], max(expected_history), (aoi, key, "history_max"))
+                self.assertEqual(metric["last_year"][index], score(2025), (aoi, key, "last_year"))
+                month, day = (int(part) for part in key.split("-"))
+                actual = date(2026, month, day)
+                expected_current = score(2026) if actual <= cutoff else None
+                self.assertEqual(metric["current_year"][index], expected_current, (aoi, key, "current_year"))
+                self.assertEqual(metric["current_year_status"][index], "available" if actual <= cutoff else "future")
+
+            watch = next(row for row in self.payload["central_asia_watch"]["aois"] if row["id"] == aoi_id)
+            cutoff_index = metric["day_keys"].index("09-10")
+            self.assertEqual(metric["current_year"][cutoff_index], watch["weather_anomaly_score"])
+
+        html = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertIn('data-chart-metric="weather_anomaly_score"', html)
+        self.assertIn("点击异常度查看季节图", html)
+        self.assertIn("天气异常度（14天滚动）", html)
 
     def test_four_regular_region_axes_are_not_cross_year(self):
         for region_id in ("china", "us", "brazil", "india"):
@@ -424,9 +587,9 @@ class PublicDashboardTest(unittest.TestCase):
                 self.assertEqual(output["source_gap_count"], expected_gap_count, (geography, metric))
 
         xinjiang = self.payload["seasonal"]["china"]
-        self.assertEqual(xinjiang["metrics"]["high_heat"]["active_periods"], [{"start": "06-01", "end": "08-31"}])
-        self.assertEqual(xinjiang["metrics"]["low_temperature"]["active_periods"], [{"start": "04-01", "end": "05-31"}, {"start": "09-01", "end": "11-30"}])
-        self.assertEqual(xinjiang["metrics"]["score"]["current_year_status"][xinjiang["metrics"]["score"]["day_keys"].index("09-14")], "future")
+        self.assertEqual(xinjiang["metrics"]["high_heat"]["active_periods"], [{"start": "04-01", "end": "11-30"}])
+        self.assertEqual(xinjiang["metrics"]["low_temperature"]["active_periods"], [{"start": "04-01", "end": "11-30"}])
+        self.assertEqual(xinjiang["metrics"]["score"]["current_year_status"][xinjiang["metrics"]["score"]["day_keys"].index("09-30")], "future")
         australia = self.payload["seasonal"]["australia"]
         self.assertEqual(australia["metrics"]["low_temperature"]["active_periods"], [{"start": "09-01", "end": "10-31"}, {"start": "03-01", "end": "04-30"}])
         self.assertEqual(australia["metrics"]["score"]["current_year_status"][australia["metrics"]["score"]["day_keys"].index("05-01")], "inactive_stage")
@@ -439,7 +602,7 @@ class PublicDashboardTest(unittest.TestCase):
         )
         """Independent point/day recomputation of the five frozen raw anchors."""
         configs = {
-            "china": (COTTON / "cn_xj_weather/points_daily.csv", ("xj_shihezi", "xj_shawan", "xj_kuitun", "xj_changji", "xj_hutubi", "xj_bole", "xj_jinghe", "xj_kashgar", "xj_shache", "xj_bachu", "xj_aksu", "xj_awat", "xj_kuqa", "xj_shaya", "xj_korla", "xj_yuli", "xj_luntai", "xj_turpan"), date(2026, 9, 13)),
+            "china": (COTTON / "cn_xj_weather/points_daily.csv", ("xj_shihezi", "xj_shawan", "xj_kuitun", "xj_changji", "xj_hutubi", "xj_bole", "xj_jinghe", "xj_kashgar", "xj_shache", "xj_bachu", "xj_aksu", "xj_awat", "xj_kuqa", "xj_shaya", "xj_korla", "xj_yuli", "xj_luntai", "xj_turpan"), date(2026, 9, 29)),
             "us": (COTTON / "us_weather/points_daily.csv", ("tx_hp_n", "tx_hp_c", "tx_hp_s", "tx_hp_w", "tx_hp_e", "tx_hp_sw", "tx_farwest", "tx_rolling", "tx_edwards", "tx_coastal", "tx_rgv", "tx_black"), date(2026, 9, 13)),
             "brazil": (COTTON / "br_weather/points_daily.csv", ("mt_campo_novo", "mt_campo_verde", "mt_diamantino", "mt_lucas", "mt_nova_mutum", "mt_nova_ubirata", "mt_primavera", "mt_rondonopolis", "mt_sapezal", "mt_sinop", "mt_sorriso", "mt_tangara"), date(2026, 9, 16)),
             "india": (COTTON / "in_weather/points_daily.csv", ("gj_rajkot", "gj_surendranagar", "gj_bhavnagar", "gj_amreli", "gj_bharuch", "mh_akola", "mh_amravati", "mh_yavatmal", "mh_buldhana", "mh_jalgaon", "mh_jalna", "mp_khargone", "mp_dhar", "tg_adilabad", "tg_warangal", "tg_khammam"), date(2026, 9, 13)),
@@ -586,8 +749,9 @@ class PublicDashboardTest(unittest.TestCase):
             "shortwave_radiation_sum": "MJ/m²", "et0_fao_evapotranspiration": "mm", "vapour_pressure_deficit_max": "kPa",
         }
         for item in self.payload["central_asia_seasonal"].values():
-            self.assertEqual(set(item["metrics"]), set(expected_units))
-            for variable, metric in item["metrics"].items():
+            self.assertEqual(set(item["metrics"]), set(expected_units) | {"weather_anomaly_score"})
+            for variable in expected_units:
+                metric = item["metrics"][variable]
                 self.assertEqual(metric["scale_type"], "auto_unit")
                 self.assertIsNone(metric["scale_min"])
                 self.assertIsNone(metric["scale_max"])
@@ -603,9 +767,16 @@ class PublicDashboardTest(unittest.TestCase):
     def test_central_raw_blank_label_and_scored_scale_metadata(self):
         raw_blank_label = "空值＝源数据缺口；不转换为棉花胁迫分"
         for item in self.payload["central_asia_seasonal"].values():
-            for metric in item["metrics"].values():
+            for variable in VARIABLES:
+                metric = item["metrics"][variable]
                 self.assertEqual(metric["blank_value_label"], raw_blank_label)
                 self.assertEqual(metric["scale_type"], "auto_unit")
+            anomaly = item["metrics"]["weather_anomaly_score"]
+            self.assertEqual(anomaly["scale_type"], "fixed_score_0_100")
+            self.assertEqual((anomaly["scale_min"], anomaly["scale_max"]), (0, 100))
+            self.assertIn("不是棉花胁迫", anomaly["value_semantics"])
+            self.assertFalse(anomaly["cross_region_comparable"])
+            self.assertIsNone(anomaly["weather_stress_score"])
         score_metric_ids = {"score", "root_zone_dryness", "high_heat", "low_temperature", "excess_rain", "spring_wind", "establishment_excess_rain", "harvest_rain", "high_temperature", "high_vpd", "low_solar", "hot_dry_compound", "excess_rain_waterlogging", "low_solar_radiation"}
         for region in self.payload["seasonal"].values():
             for metric_id, metric in region["metrics"].items():
@@ -620,6 +791,14 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("const finiteValue=v=>v!==null&&v!==undefined&&Number.isFinite(Number(v));", html)
         self.assertIn("const valid=finiteValue(upper[i])&&finiteValue(lower[i])", html)
         self.assertIn("if(next!==current)", html)
+        self.assertIn("statusRuns(M.current_year_status||[]).filter(run=>run[2]==='inactive_stage')", html)
+        self.assertIn("模型启用时段：", html)
+        self.assertIn("不是气象原始数据缺失", html)
+        self.assertIn("完整气象值请看“天气因子原始数据”", html)
+        self.assertIn("continuous_three_phase_temperature_factor_score", html)
+        self.assertIn("全生长期连续计分", html)
+        self.assertIn("暂定次要权重纳入综合分", html)
+        self.assertIn("权重未校准", html)
 
         australia = self.payload["seasonal"]["australia"]["metrics"]["low_temperature"]
         keys = australia["day_keys"]
@@ -651,7 +830,7 @@ class PublicDashboardTest(unittest.TestCase):
             if not finite and start is not None:
                 history_runs.append((xinjiang["day_keys"][start], xinjiang["day_keys"][index - 1]))
                 start = None
-        self.assertEqual(history_runs, [("04-01", "05-31"), ("09-01", "11-30")])
+        self.assertEqual(history_runs, [("04-01", "11-30")])
 
     def test_central_current_cards_and_daily_charts_use_distinct_labels(self):
         current_labels = {
@@ -713,7 +892,7 @@ class PublicDashboardTest(unittest.TestCase):
         expected = math.fsum(weights[rid] * current_scores[rid] for rid in ids.values())
         self.assertEqual(composite["common_cutoff_date"], "2026-09-10")
         self.assertEqual(composite["current_score"], expected)
-        self.assertEqual(composite["current_score"], 34.203232814344204)
+        self.assertEqual(composite["current_score"], 35.08720088394486)
         self.assertEqual(composite["weighted_production_coverage"], 1.0)
         self.assertEqual(composite["current_region_scores"], current_scores)
         metric = composite["seasonal_metric"]
@@ -780,7 +959,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("历史带不含补造的澳洲历史分", html)
         self.assertIn("覆盖不足不按0处理", html)
         self.assertIn("M.nonnegative?Math.max(0,lo-extra):lo-extra", html)
-        self.assertIn("v=20260924-v07-display-hierarchy", html)
+        self.assertIn("v=20260929-v08-xinjiang-continuous-temperature", html)
         self.assertNotIn("v=20260923-v05-raw-weather", html)
         self.assertIn("data-chart-region=\"${weightedId}\"", html)
         self.assertIn("const first=app.querySelector('.hero')", html)
@@ -792,7 +971,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertEqual(composite["id"], "five_region_production_weighted_weather_stress_display")
         self.assertEqual(composite["label"], title)
         self.assertEqual(composite["seasonal_metric"]["label"], title)
-        self.assertEqual(composite["current_score"], 34.203232814344204)
+        self.assertEqual(composite["current_score"], 35.08720088394486)
 
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         self.assertIn("<title>棉花供需与天气胁迫看板 V0.7</title>", html)
@@ -869,22 +1048,24 @@ class PublicDashboardTest(unittest.TestCase):
                 f"post-cutoff append changed the frozen raw semantic hash for {geography}",
             )
 
-    def test_v07_payload_matches_v06_outside_version_labels_and_source_max_metadata(self):
+    def test_v07_payload_matches_predecessor_outside_xinjiang_v02_and_new_anomaly_series(self):
         previous = json.loads(subprocess.check_output(["git", "show", "20b703f:data.json"], cwd=ROOT, text=True))
 
         def normalize(payload):
             result = json.loads(json.dumps(payload))
             result["dashboard_id"] = "<versioned dashboard id>"
-            composite = result["five_region_production_weighted_weather_stress_display"]
-            composite["label"] = "<versioned aggregate label>"
-            composite["seasonal_metric"]["label"] = "<versioned aggregate label>"
-            for region_id in ("china", "us", "brazil", "india"):
+            result["five_region_production_weighted_weather_stress_display"] = "<Xinjiang V0.2 dependent composite>"
+            result["regions"] = ["<Xinjiang V0.2 region>" if row.get("id") == "china" else row for row in result["regions"]]
+            result["seasonal"]["china"] = "<Xinjiang V0.2 seasonal and raw layer>"
+            for region_id in ("us", "brazil", "india"):
                 season = result["seasonal"][region_id]
                 season["raw_weather"]["source_file_max_date"] = "<append-only source max>"
                 for metric in season["raw_metrics"].values():
                     metric["source_file_max_date"] = "<append-only source max>"
                 for metric in season["raw_weather"]["metrics"].values():
                     metric["source_file_max_date"] = "<append-only source max>"
+            for item in result["central_asia_seasonal"].values():
+                item["metrics"].pop("weather_anomaly_score", None)
             return result
 
         self.assertEqual(normalize(previous), normalize(self.payload))
@@ -925,7 +1106,7 @@ class PublicDashboardTest(unittest.TestCase):
     def test_published_data_fetch_is_versioned_for_cache_busting(self):
         for page in (ROOT / "index.html", ROOT / "dist/index.html"):
             html = page.read_text(encoding="utf-8")
-            self.assertIn("fetch('./data.json?v=20260924-v07-display-hierarchy')", html)
+            self.assertIn("fetch('./data.json?v=20260929-v08-xinjiang-continuous-temperature')", html)
             self.assertNotIn("fetch('./data.json')", html)
 
     def test_temp_builder_is_deterministic(self):
