@@ -24,7 +24,7 @@
 - 合成季节图固定 04-01—11-30，历史 2015—2024、去年 2025、今年 2026 至共同截止日；逐日按有效产量权重计算，覆盖低于 0.60 输出 null/status `coverage_below_gate`，不得补 0。逐日记录 coverage 与 `valid_region_ids`；历史带不补造澳洲历史分，且页面披露地区组合变化可能同时影响曲线。
 - 产量加权展示标题和 payload `label` 固定为 `全球棉花五大种植区域天气胁迫总评分（产区产量加权）`，对象 ID 保持 `five_region_production_weighted_weather_stress_display`；总分使用独立 CSS class，桌面字号至少 56px，点击仍打开原季节图。
 - 权重表置于默认关闭的原生 `<details>`，summary 精确为 `产量加权详情`；表格在展开后显示。
-- V0.7 title、H1、dashboard_id 保持不变；本轮 cache key 固定为 `v=20260929-v10-regional-continuous-temperature`。raw 降水与短波辐射 metric 标记 `nonnegative=true`，自动轴下界不得因 padding 为负；五区太阳辐射卡显示各区冻结中文模型状态。
+- V0.7 title、H1、dashboard_id 保持不变；最新日期刷新 cache key 固定为 `v=20260929-v11-latest-date-refresh`。得州、巴西、印度消费带日期的追加式 refresh sidecar，不覆盖既有冻结比较产物；地区卡与 raw 指标使用各自产区真实最新完整日期。全球产量加权总分仍仅按五区共同截止日计算，澳洲数据止于 2026-09-10 时不得把其他地区较晚值拼成伪同步总分。raw 降水与短波辐射 metric 标记 `nonnegative=true`，自动轴下界不得因 padding 为负；五区太阳辐射卡显示各区冻结中文模型状态。
 - 新疆春季风害图的展示轴固定为 04-01—05-31，6—11 月不得显示；这是前端展示裁剪，底层 04-01—11-30 审计数组、评分模型与总分权重不变。
 
 ## 新疆 V0.2 连续温度评分

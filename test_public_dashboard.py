@@ -65,14 +65,17 @@ FROZEN_INPUT_SHAS = {
     COTTON / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_daily.csv": "f49451d591172c6104bc42dfff215d97d65af421c1b1331433c1a61e3c7025f3",
     COTTON / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_2_daily.csv": "43cf7af726872dd3bffb877099d17f89ea51926caeb3dedf84fac47d3b5b9b9e",
     COTTON / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_daily.csv": "a7f852a54b1d94987c1a639a6aa5970683b2d62ca5892189732d07450dbc66e8",
+    COTTON / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_refresh_2026_09_29_daily.csv": "c84748221e5719e831fb652a26e219a60225be4bd58eee585b69e90aa276f065",
+    COTTON / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_2_refresh_2026_09_29_daily.csv": "e8500c236e69eb1e1005fa1478b65d95d905b106544cd4e976dfc7ad6d1a582d",
+    COTTON / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_refresh_2026_09_29_daily.csv": "f7b56102ea878ad3572747c7bf5e56e07020d61e12cf8a42e4ffd76e07c506c4",
     COTTON / "au_weather/derived/australia_theoretical_weather_stress_index_v0_2_daily.csv": "693561f5558b240b2409cfd5e9f1b2cd0a12e5facfb50184da593ba27091cf25",
     COTTON / "model_status.json": "b3fbabe71bd15c1bc0ef65d2b4e34f3621a184383c3f89d8a9320a896a2daf0d",
 }
 FROZEN_RAW_POINT_SEMANTIC_SHAS = {
     "China": "fd5beeeb644ee0f9434226c4af9adee828eefd59ce42468c507da60d4c7dec4a",
-    "United States": "bbf5830bce45f1890b9a2bf3e6db095a47e834741d32379d04f963c02ac6cb47",
-    "Brazil": "ab070ba5e37c48d3bc8a5cb3b6102dcdb465150c64bc10005343ba4b1bc7d3ed",
-    "India": "138c34130e6c31da80f55fc9c0ff50dd9b60dc5c38e1f9773657a7ccd7b55d5e",
+    "United States": "23ccf160401edd1bd43ca9676e5c88b1fdcba0554b1ea44a47bf67556d1a034f",
+    "Brazil": "5239be128d80a256c4606143c7a8212d5034da34a0c6151dd756c5e8c7e6ec7e",
+    "India": "d8f2520448d2806dd18a0f1f5b3f4a33010767680e4b7c0bfc9570cc6f7c661b",
 }
 RAW_POINT_HASH_FIELDS = ("date", "tmax", "tmin", "precip", "sw_rad")
 KEYS = []
@@ -604,13 +607,13 @@ class PublicDashboardTest(unittest.TestCase):
         """Independent point/day recomputation of the five frozen raw anchors."""
         configs = {
             "china": (COTTON / "cn_xj_weather/points_daily.csv", ("xj_shihezi", "xj_shawan", "xj_kuitun", "xj_changji", "xj_hutubi", "xj_bole", "xj_jinghe", "xj_kashgar", "xj_shache", "xj_bachu", "xj_aksu", "xj_awat", "xj_kuqa", "xj_shaya", "xj_korla", "xj_yuli", "xj_luntai", "xj_turpan"), date(2026, 9, 29)),
-            "us": (COTTON / "us_weather/points_daily.csv", ("tx_hp_n", "tx_hp_c", "tx_hp_s", "tx_hp_w", "tx_hp_e", "tx_hp_sw", "tx_farwest", "tx_rolling", "tx_edwards", "tx_coastal", "tx_rgv", "tx_black"), date(2026, 9, 13)),
-            "brazil": (COTTON / "br_weather/points_daily.csv", ("mt_campo_novo", "mt_campo_verde", "mt_diamantino", "mt_lucas", "mt_nova_mutum", "mt_nova_ubirata", "mt_primavera", "mt_rondonopolis", "mt_sapezal", "mt_sinop", "mt_sorriso", "mt_tangara"), date(2026, 9, 16)),
-            "india": (COTTON / "in_weather/points_daily.csv", ("gj_rajkot", "gj_surendranagar", "gj_bhavnagar", "gj_amreli", "gj_bharuch", "mh_akola", "mh_amravati", "mh_yavatmal", "mh_buldhana", "mh_jalgaon", "mh_jalna", "mp_khargone", "mp_dhar", "tg_adilabad", "tg_warangal", "tg_khammam"), date(2026, 9, 13)),
+            "us": (COTTON / "us_weather/points_daily.csv", ("tx_hp_n", "tx_hp_c", "tx_hp_s", "tx_hp_w", "tx_hp_e", "tx_hp_sw", "tx_farwest", "tx_rolling", "tx_edwards", "tx_coastal", "tx_rgv", "tx_black"), date(2026, 9, 29)),
+            "brazil": (COTTON / "br_weather/points_daily.csv", ("mt_campo_novo", "mt_campo_verde", "mt_diamantino", "mt_lucas", "mt_nova_mutum", "mt_nova_ubirata", "mt_primavera", "mt_rondonopolis", "mt_sapezal", "mt_sinop", "mt_sorriso", "mt_tangara"), date(2026, 9, 28)),
+            "india": (COTTON / "in_weather/points_daily.csv", ("gj_rajkot", "gj_surendranagar", "gj_bhavnagar", "gj_amreli", "gj_bharuch", "mh_akola", "mh_amravati", "mh_yavatmal", "mh_buldhana", "mh_jalgaon", "mh_jalna", "mp_khargone", "mp_dhar", "tg_adilabad", "tg_warangal", "tg_khammam"), date(2026, 9, 29)),
         }
         expected = {
-            "china": (29.258, 17.265, 11.856, 18.990), "us": (36.745, 24.549, 6.883, 22.813),
-            "brazil": (32.838, 20.844, 12.267, 20.034), "india": (31.051, 24.529, 59.911, 18.114),
+            "china": (29.258, 17.265, 11.856, 18.990), "us": (32.189, 21.259, 37.209, 19.245),
+            "brazil": (34.812, 22.814, 16.342, 21.045), "india": (31.763, 24.277, 37.972, 20.349),
         }
         def point_anchor(path, points, cutoff):
             rows = {point: {} for point in points}
@@ -958,7 +961,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("历史带不含补造的澳洲历史分", html)
         self.assertIn("覆盖不足不按0处理", html)
         self.assertIn("M.nonnegative?Math.max(0,lo-extra):lo-extra", html)
-        self.assertIn("v=20260929-v10-regional-continuous-temperature", html)
+        self.assertIn("v=20260929-v11-latest-date-refresh", html)
         self.assertNotIn("v=20260923-v05-raw-weather", html)
         self.assertIn("data-chart-region=\"${weightedId}\"", html)
         self.assertIn("const first=app.querySelector('.hero')", html)
@@ -1069,17 +1072,10 @@ class PublicDashboardTest(unittest.TestCase):
             result = json.loads(json.dumps(payload))
             result["dashboard_id"] = "<versioned dashboard id>"
             result["five_region_production_weighted_weather_stress_display"] = "<regional V0.2 dependent composite>"
-            changed_regions = {"china", "us", "brazil", "australia"}
+            changed_regions = {"china", "us", "brazil", "india", "australia"}
             result["regions"] = ["<regional V0.2 successor>" if row.get("id") in changed_regions else row for row in result["regions"]]
             for region_id in changed_regions:
                 result["seasonal"][region_id] = "<regional V0.2 seasonal layer>"
-            for region_id in ("india",):
-                season = result["seasonal"][region_id]
-                season["raw_weather"]["source_file_max_date"] = "<append-only source max>"
-                for metric in season["raw_metrics"].values():
-                    metric["source_file_max_date"] = "<append-only source max>"
-                for metric in season["raw_weather"]["metrics"].values():
-                    metric["source_file_max_date"] = "<append-only source max>"
             for item in result["central_asia_seasonal"].values():
                 item["metrics"].pop("weather_anomaly_score", None)
             return result
@@ -1088,7 +1084,7 @@ class PublicDashboardTest(unittest.TestCase):
 
     def test_page_and_publish_files_are_synced_and_safe(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
-        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "全球棉花五大种植区域天气胁迫总评分（产区产量加权）", "产量加权详情", "共同截止", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.7", "天气因子原始数据", "模型天气胁迫单因子评分", "Tmax日最高温度（14天移动平均）", "Tmin日最低温度（14天移动平均）", "TP累计降水量（14天累计滚动值）", "SWd日短波辐射（14日移动平均）", "MJ/m²/日", "天气原值与理论分数均未换算为 USDA 产量", "太阳辐射模型状态："):
+        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "全球棉花五大种植区域天气胁迫总评分（产区产量加权）", "产量加权详情", "共同截止", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.7", "USDA供需截止", "天气因子原始数据", "模型天气胁迫单因子评分", "Tmax日最高温度（14天移动平均）", "Tmin日最低温度（14天移动平均）", "TP累计降水量（14天累计滚动值）", "SWd日短波辐射（14日移动平均）", "MJ/m²/日", "天气原值与理论分数均未换算为 USDA 产量", "太阳辐射模型状态："):
             self.assertIn(phrase, html)
         self.assertIn("<title>棉花供需与天气胁迫看板 V0.7</title>", html)
         self.assertNotIn("看板 V0.5", html)
@@ -1122,7 +1118,7 @@ class PublicDashboardTest(unittest.TestCase):
     def test_published_data_fetch_is_versioned_for_cache_busting(self):
         for page in (ROOT / "index.html", ROOT / "dist/index.html"):
             html = page.read_text(encoding="utf-8")
-            self.assertIn("fetch('./data.json?v=20260929-v10-regional-continuous-temperature')", html)
+            self.assertIn("fetch('./data.json?v=20260929-v11-latest-date-refresh')", html)
             self.assertNotIn("fetch('./data.json')", html)
 
     def test_temp_builder_is_deterministic(self):

@@ -23,17 +23,17 @@ AUSTRALIA_DAILY_PATH = COTTON_ROOT / "au_weather/derived/australia_theoretical_w
 CENTRAL_ASIA_WATCH_PATH = COTTON_ROOT / "research/derived/central_asia_cotton_current_weather_watch_v0_2.json"
 CENTRAL_ASIA_SEASONAL_PATH = COTTON_ROOT / "research/derived/australia_central_asia_cotton_era5_daily_seasonality_v0_2.csv"
 REGION_PATHS = {
-    "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_latest.json",
+    "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_refresh_2026_09_29_latest.json",
     "China": COTTON_ROOT / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_2_latest.json",
-    "India": COTTON_ROOT / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_latest.json",
-    "Brazil": COTTON_ROOT / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_2_latest.json",
+    "India": COTTON_ROOT / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_refresh_2026_09_29_latest.json",
+    "Brazil": COTTON_ROOT / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_2_refresh_2026_09_29_latest.json",
 }
 
 DAILY_PATHS = {
     "China": COTTON_ROOT / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_2_daily.csv",
-    "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_daily.csv",
-    "Brazil": COTTON_ROOT / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_2_daily.csv",
-    "India": COTTON_ROOT / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_daily.csv",
+    "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_refresh_2026_09_29_daily.csv",
+    "Brazil": COTTON_ROOT / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_2_refresh_2026_09_29_daily.csv",
+    "India": COTTON_ROOT / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_refresh_2026_09_29_daily.csv",
 }
 
 CENTRAL_ASIA_IDS = {
@@ -182,7 +182,7 @@ RAW_POINT_CONFIG = {
         "points": ("tx_hp_n", "tx_hp_c", "tx_hp_s", "tx_hp_w", "tx_hp_e", "tx_hp_sw", "tx_farwest", "tx_rolling", "tx_edwards", "tx_coastal", "tx_rgv", "tx_black"),
         "weights": {p: (0.64 / 6 if p.startswith("tx_hp_") else 0.36 / 6) for p in ("tx_hp_n", "tx_hp_c", "tx_hp_s", "tx_hp_w", "tx_hp_e", "tx_hp_sw", "tx_farwest", "tx_rolling", "tx_edwards", "tx_coastal", "tx_rgv", "tx_black")},
         "window": SEASON_WINDOWS["United States"],
-        "cutoff": date(2026, 9, 13),
+        "cutoff": date(2026, 9, 29),
         "history_years": list(range(2005, 2025)),
         "solar_status": "observed_only_excluded_local_direction_gap",
     },
@@ -191,7 +191,7 @@ RAW_POINT_CONFIG = {
         "points": ("mt_campo_novo", "mt_campo_verde", "mt_diamantino", "mt_lucas", "mt_nova_mutum", "mt_nova_ubirata", "mt_primavera", "mt_rondonopolis", "mt_sapezal", "mt_sinop", "mt_sorriso", "mt_tangara"),
         "weights": {p: 1.0 / 12.0 for p in ("mt_campo_novo", "mt_campo_verde", "mt_diamantino", "mt_lucas", "mt_nova_mutum", "mt_nova_ubirata", "mt_primavera", "mt_rondonopolis", "mt_sapezal", "mt_sinop", "mt_sorriso", "mt_tangara")},
         "window": SEASON_WINDOWS["Brazil"],
-        "cutoff": date(2026, 9, 16),
+        "cutoff": date(2026, 9, 28),
         "history_years": list(range(2005, 2025)),
         "solar_status": "included_in_model_contract",
     },
@@ -201,7 +201,7 @@ RAW_POINT_CONFIG = {
         "weights": {"GJ": 0.3404351768, "MH": 0.3739800544, "MP": 0.0643699003, "TG": 0.2212148685},
         "state_points": {"GJ": ("gj_rajkot", "gj_surendranagar", "gj_bhavnagar", "gj_amreli", "gj_bharuch"), "MH": ("mh_akola", "mh_amravati", "mh_yavatmal", "mh_buldhana", "mh_jalgaon", "mh_jalna"), "MP": ("mp_khargone", "mp_dhar"), "TG": ("tg_adilabad", "tg_warangal", "tg_khammam")},
         "window": SEASON_WINDOWS["India"],
-        "cutoff": date(2026, 9, 13),
+        "cutoff": date(2026, 9, 29),
         "history_years": list(range(2005, 2025)),
         "solar_status": "observed_only_excluded_pending_dedup",
     },
