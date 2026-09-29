@@ -18,21 +18,21 @@ COTTON_ROOT = SITE_ROOT.parent
 DIST = SITE_ROOT / "dist"
 
 BRIEF_PATH = COTTON_ROOT / "research/derived/cotton_current_supply_decision_brief_v0_2.json"
-AUSTRALIA_LATEST_PATH = COTTON_ROOT / "au_weather/derived/australia_theoretical_weather_stress_index_v0_1_latest.json"
-AUSTRALIA_DAILY_PATH = COTTON_ROOT / "au_weather/derived/australia_theoretical_weather_stress_index_v0_1_daily.csv"
+AUSTRALIA_LATEST_PATH = COTTON_ROOT / "au_weather/derived/australia_theoretical_weather_stress_index_v0_2_latest.json"
+AUSTRALIA_DAILY_PATH = COTTON_ROOT / "au_weather/derived/australia_theoretical_weather_stress_index_v0_2_daily.csv"
 CENTRAL_ASIA_WATCH_PATH = COTTON_ROOT / "research/derived/central_asia_cotton_current_weather_watch_v0_2.json"
 CENTRAL_ASIA_SEASONAL_PATH = COTTON_ROOT / "research/derived/australia_central_asia_cotton_era5_daily_seasonality_v0_2.csv"
 REGION_PATHS = {
-    "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_1_latest.json",
+    "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_latest.json",
     "China": COTTON_ROOT / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_2_latest.json",
     "India": COTTON_ROOT / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_latest.json",
-    "Brazil": COTTON_ROOT / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_1_latest.json",
+    "Brazil": COTTON_ROOT / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_2_latest.json",
 }
 
 DAILY_PATHS = {
     "China": COTTON_ROOT / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_2_daily.csv",
-    "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_1_daily.csv",
-    "Brazil": COTTON_ROOT / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_1_daily.csv",
+    "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_daily.csv",
+    "Brazil": COTTON_ROOT / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_2_daily.csv",
     "India": COTTON_ROOT / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_daily.csv",
 }
 
@@ -465,6 +465,26 @@ def build_seasonal(geography: str) -> dict:
                 "stage_weight_note": "新疆V0.2全生长期连续计分；主要敏感阶段沿用原权重，其他阶段以0.5暂定次要权重纳入综合分。",
                 "theoretical_not_calibrated": True,
             })
+        if geography == "United States" and metric in {"low_temperature", "high_heat"}:
+            meta.update({
+                "display_role": "local_calendar_continuous_temperature_factor_score",
+                "secondary_weight": 0.5,
+                "stage_weight_note": "得州V0.2在各子区当地作季内连续监测高温与低温；V0.1原主权重保留，原硬排除方向以0.5暂定次要权重纳入。权重未校准。",
+                "theoretical_not_calibrated": True,
+            })
+        if geography == "Brazil" and metric in {"low_temperature", "high_temperature"}:
+            meta.update({
+                "display_role": "local_calendar_continuous_temperature_factor_score",
+                "secondary_weight": 0.5,
+                "stage_weight_note": "巴西MT V0.2在1—9月当地模型窗口连续监测高温与低温；V0.1原主权重保留，原硬排除方向以0.5暂定次要权重纳入。权重未校准。",
+                "theoretical_not_calibrated": True,
+            })
+        if geography == "China" and metric == "spring_wind":
+            meta.update({
+                "chart_display_start": "04-01",
+                "chart_display_end": "05-31",
+                "chart_display_note": "图轴仅显示春季风害评分启用期 04-01—05-31；6—11月不展示。",
+            })
         metrics[metric] = meta
     return {
         "status": "available" if metrics else "gap",
@@ -562,7 +582,7 @@ def build_australia_seasonal() -> dict:
         prior = season_trace(metric, 2025)
         current_status = season_status(metric, 2026, current)
         prior_status = season_status(metric, 2025, prior)
-        metrics[metric] = {
+        metric_payload = {
             **_score_meta(meta, metric), "day_keys": keys, "history_min": [None] * len(keys), "history_max": [None] * len(keys),
             "last_year": prior, "current_year": current, "last_year_label": str(prior_year),
             "current_year_label": str(current_year), "history_years": [], "history_year_count": 0,
@@ -573,6 +593,14 @@ def build_australia_seasonal() -> dict:
             "status_counts": {"last_year": _status_counts(prior_status), "current_year": _status_counts(current_status)},
             "source_gap_count": prior_status.count("source_gap") + current_status.count("source_gap"),
         }
+        if metric in {"low_temperature", "high_heat"}:
+            metric_payload.update({
+                "display_role": "local_calendar_continuous_temperature_factor_score",
+                "secondary_weight": 0.5,
+                "stage_weight_note": "澳洲V0.2在9月至次年4月当地模型窗口连续监测高温与低温；V0.1原主权重保留，原硬排除方向以0.5暂定次要权重纳入。权重未校准。",
+                "theoretical_not_calibrated": True,
+            })
+        metrics[metric] = metric_payload
     return {
         "status": "available" if metrics else "gap", "source": str(AUSTRALIA_DAILY_PATH.relative_to(COTTON_ROOT)),
         "axis": "cross_year_month_day", "current_year": current_year, "last_year": prior_year,

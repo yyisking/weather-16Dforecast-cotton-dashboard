@@ -20,11 +20,12 @@
 ## V0.7 产量加权展示合成与层级
 
 - 新对象 `five_region_production_weighted_weather_stress_display` 只展示五个当地理论天气胁迫分的产量加权合成；权重读取当前 USDA 简报五区 `current_production_1000_480lb_bales`，合计 92,201 千包，禁止乘 R² 或旧全球权重。
-- 固定五区权重：中国 33,500、美国 13,201、巴西 18,500、印度 24,000、澳大利亚 3,000；共同截止日为 2026-09-10，使用新疆 V0.2 后当前展示值为 35.08720088394486、覆盖率 1.0。对象必须标记 `display_only`、`not_calibrated`、`not_loss_percent`、`not_unified_model`；`global_numeric_weather_score` 仍为 null，`cross_region_weather_comparable` 仍为 false。
+- 固定五区权重：中国 33,500、美国 13,201、巴西 18,500、印度 24,000、澳大利亚 3,000；共同截止日为 2026-09-10，消费新疆、得州、巴西 MT 与澳洲连续温度后继版后的当前展示值为 32.47874294964914、覆盖率 1.0。对象必须标记 `display_only`、`not_calibrated`、`not_loss_percent`、`not_unified_model`；`global_numeric_weather_score` 仍为 null，`cross_region_weather_comparable` 仍为 false。
 - 合成季节图固定 04-01—11-30，历史 2015—2024、去年 2025、今年 2026 至共同截止日；逐日按有效产量权重计算，覆盖低于 0.60 输出 null/status `coverage_below_gate`，不得补 0。逐日记录 coverage 与 `valid_region_ids`；历史带不补造澳洲历史分，且页面披露地区组合变化可能同时影响曲线。
 - 产量加权展示标题和 payload `label` 固定为 `全球棉花五大种植区域天气胁迫总评分（产区产量加权）`，对象 ID 保持 `five_region_production_weighted_weather_stress_display`；总分使用独立 CSS class，桌面字号至少 56px，点击仍打开原季节图。
 - 权重表置于默认关闭的原生 `<details>`，summary 精确为 `产量加权详情`；表格在展开后显示。
-- V0.7 title、H1、dashboard_id 保持不变；本轮 cache key 固定为 `v=20260929-v08-xinjiang-continuous-temperature`。raw 降水与短波辐射 metric 标记 `nonnegative=true`，自动轴下界不得因 padding 为负；五区太阳辐射卡显示各区冻结中文模型状态。
+- V0.7 title、H1、dashboard_id 保持不变；本轮 cache key 固定为 `v=20260929-v10-regional-continuous-temperature`。raw 降水与短波辐射 metric 标记 `nonnegative=true`，自动轴下界不得因 padding 为负；五区太阳辐射卡显示各区冻结中文模型状态。
+- 新疆春季风害图的展示轴固定为 04-01—05-31，6—11 月不得显示；这是前端展示裁剪，底层 04-01—11-30 审计数组、评分模型与总分权重不变。
 
 ## 新疆 V0.2 连续温度评分
 
@@ -33,3 +34,10 @@
 - 低温主要权重时段为 4—5 月、9—11 月，6—8 月使用暂定次要权重 `0.5`；高温主要权重时段为 6—8 月，4—5 月、9—11 月使用暂定次要权重 `0.5`。
 - 原 V0.1 主要阶段权重、14 日暴露、同月日历史单尾百分位、18 点等权和 60% 覆盖门不变。`0.5` 为 `provisional_continuous_temperature_monitoring_prior`，不是校准系数。
 - 两条温度季节图必须拥有完整 04-01—11-30 历史带；今年线只可因未来日期或真实源缺口断开。页面必须披露三阶段主次权重和未校准状态。
+
+## 得州、巴西 MT、澳洲连续温度后继版
+
+- 公开看板分别消费 `us_tx_*_v0_2`、`brazil_mt_*_v0_2`、`australia_*_v0_2`；旧 V0.1 文件保持冻结。
+- 得州在各子区当地作季、巴西 MT 在 1—9 月、澳洲在 9 月至次年 4 月均同时保留高温与低温评分。原 V0.1 非零主权重不变，原为零或未配置的另一温度方向以 `0.5` 暂定次要权重纳入。
+- 三个 V0.2 必须分别冻结在原公开截止日 2026-09-13、2026-09-16、2026-09-10，不能把原始点文件后来新增日期混入本轮模型差异。
+- 印度不受本规则覆盖；其现有 `hot_dry_compound` 不是独立高温/低温双因子，独立低温保持设计缺口。

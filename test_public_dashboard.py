@@ -62,10 +62,10 @@ FROZEN_INPUT_SHAS = {
     COTTON / "research/derived/australia_central_asia_cotton_era5_daily_seasonality_v0_2.csv": "9ce46a2ab31981ccd8952fd328f5bfd230314857a84ede7a2f38f0bfc30be949",
     COTTON / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_1_daily.csv": "3fe931e9de5e195835d7f211aefd8d52a5d95d68dad3713df6c0f646e94d561a",
     COTTON / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_2_daily.csv": "ba7b6e2cf02fab2ee40e833d879cb4c15b2975b94aa7ec1cf5adad03023492da",
-    COTTON / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_1_daily.csv": "0b2be4b9706cccf56c8328a68283a98b2c7a005e12101cbb5337fe95f7e877f7",
-    COTTON / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_1_daily.csv": "0f4dc5b507c092f28231095143a0a0cb8efb48af094fa2d15f9fddc99f8575d3",
+    COTTON / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_daily.csv": "f49451d591172c6104bc42dfff215d97d65af421c1b1331433c1a61e3c7025f3",
+    COTTON / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_2_daily.csv": "43cf7af726872dd3bffb877099d17f89ea51926caeb3dedf84fac47d3b5b9b9e",
     COTTON / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_daily.csv": "a7f852a54b1d94987c1a639a6aa5970683b2d62ca5892189732d07450dbc66e8",
-    COTTON / "au_weather/derived/australia_theoretical_weather_stress_index_v0_1_daily.csv": "a977f9be8e79b57ae25b443645f2ca43313369e5050eeee45353a8b9ab3c4331",
+    COTTON / "au_weather/derived/australia_theoretical_weather_stress_index_v0_2_daily.csv": "693561f5558b240b2409cfd5e9f1b2cd0a12e5facfb50184da593ba27091cf25",
     COTTON / "model_status.json": "b3fbabe71bd15c1bc0ef65d2b4e34f3621a184383c3f89d8a9320a896a2daf0d",
 }
 FROZEN_RAW_POINT_SEMANTIC_SHAS = {
@@ -235,8 +235,8 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("USDA 官方棉花产量变化", australia["supply_risk_reading"])
         factors = {factor["id"]: factor for factor in australia["factors"]}
         self.assertEqual(set(factors), {"low_temperature", "high_heat", "excess_rain", "high_vpd", "low_solar"})
-        self.assertIsNone(factors["high_heat"]["score"])
-        self.assertEqual(factors["high_heat"]["status"], "not_available_or_inactive")
+        self.assertEqual(factors["high_heat"]["score"], self.au_latest["high_heat_score"])
+        self.assertEqual(factors["high_heat"]["status"], "available")
         self.assertEqual(factors["low_temperature"]["score"], self.au_latest["low_temperature_score"])
         self.assertEqual(factors["low_solar"]["score"], self.au_latest["low_solar_score"])
 
@@ -591,7 +591,8 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertEqual(xinjiang["metrics"]["low_temperature"]["active_periods"], [{"start": "04-01", "end": "11-30"}])
         self.assertEqual(xinjiang["metrics"]["score"]["current_year_status"][xinjiang["metrics"]["score"]["day_keys"].index("09-30")], "future")
         australia = self.payload["seasonal"]["australia"]
-        self.assertEqual(australia["metrics"]["low_temperature"]["active_periods"], [{"start": "09-01", "end": "10-31"}, {"start": "03-01", "end": "04-30"}])
+        self.assertEqual(australia["metrics"]["low_temperature"]["active_periods"], [{"start": "09-01", "end": "04-30"}])
+        self.assertEqual(australia["metrics"]["high_heat"]["active_periods"], [{"start": "09-01", "end": "04-30"}])
         self.assertEqual(australia["metrics"]["score"]["current_year_status"][australia["metrics"]["score"]["day_keys"].index("05-01")], "inactive_stage")
         self.assertEqual(australia["metrics"]["score"]["current_year_status"][australia["metrics"]["score"]["day_keys"].index("09-11")], "future")
 
@@ -814,9 +815,7 @@ class PublicDashboardTest(unittest.TestCase):
                 current = next_status
         self.assertEqual(status_runs, [
             ("09-01", "09-10", "available"),
-            ("09-11", "10-31", "future"),
-            ("11-01", "02-28", "inactive_stage"),
-            ("03-01", "04-30", "future"),
+            ("09-11", "04-30", "future"),
             ("05-01", "06-30", "inactive_stage"),
         ])
 
@@ -892,7 +891,7 @@ class PublicDashboardTest(unittest.TestCase):
         expected = math.fsum(weights[rid] * current_scores[rid] for rid in ids.values())
         self.assertEqual(composite["common_cutoff_date"], "2026-09-10")
         self.assertEqual(composite["current_score"], expected)
-        self.assertEqual(composite["current_score"], 35.08720088394486)
+        self.assertEqual(composite["current_score"], 32.47874294964914)
         self.assertEqual(composite["weighted_production_coverage"], 1.0)
         self.assertEqual(composite["current_region_scores"], current_scores)
         metric = composite["seasonal_metric"]
@@ -959,11 +958,26 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("历史带不含补造的澳洲历史分", html)
         self.assertIn("覆盖不足不按0处理", html)
         self.assertIn("M.nonnegative?Math.max(0,lo-extra):lo-extra", html)
-        self.assertIn("v=20260929-v08-xinjiang-continuous-temperature", html)
+        self.assertIn("v=20260929-v10-regional-continuous-temperature", html)
         self.assertNotIn("v=20260923-v05-raw-weather", html)
         self.assertIn("data-chart-region=\"${weightedId}\"", html)
         self.assertIn("const first=app.querySelector('.hero')", html)
         self.assertIn("M.solar_display_status", html)
+
+    def test_xinjiang_spring_wind_chart_is_cropped_to_active_window_only(self):
+        metric = self.payload["seasonal"]["china"]["metrics"]["spring_wind"]
+        self.assertEqual(metric["chart_display_start"], "04-01")
+        self.assertEqual(metric["chart_display_end"], "05-31")
+        self.assertIn("6—11月不展示", metric["chart_display_note"])
+        self.assertEqual(metric["day_keys"][0], "04-01")
+        self.assertEqual(metric["day_keys"][-1], "11-30")
+        self.assertEqual(len(metric["day_keys"]), len(metric["current_year_status"]))
+
+        html = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertIn("function chartMetricForDisplay(metric)", html)
+        self.assertIn("keys.indexOf(metric.chart_display_start)", html)
+        self.assertIn("value.slice(start,end+1)", html)
+        self.assertIn("M=chartMetricForDisplay(M)", html)
 
     def test_v07_label_score_titles_raw_explanation_and_collapsed_weights(self):
         title = "全球棉花五大种植区域天气胁迫总评分（产区产量加权）"
@@ -971,7 +985,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertEqual(composite["id"], "five_region_production_weighted_weather_stress_display")
         self.assertEqual(composite["label"], title)
         self.assertEqual(composite["seasonal_metric"]["label"], title)
-        self.assertEqual(composite["current_score"], 35.08720088394486)
+        self.assertEqual(composite["current_score"], 32.47874294964914)
 
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         self.assertIn("<title>棉花供需与天气胁迫看板 V0.7</title>", html)
@@ -1048,16 +1062,18 @@ class PublicDashboardTest(unittest.TestCase):
                 f"post-cutoff append changed the frozen raw semantic hash for {geography}",
             )
 
-    def test_v07_payload_matches_predecessor_outside_xinjiang_v02_and_new_anomaly_series(self):
+    def test_v07_payload_matches_predecessor_outside_declared_v02_successors_and_new_anomaly_series(self):
         previous = json.loads(subprocess.check_output(["git", "show", "20b703f:data.json"], cwd=ROOT, text=True))
 
         def normalize(payload):
             result = json.loads(json.dumps(payload))
             result["dashboard_id"] = "<versioned dashboard id>"
-            result["five_region_production_weighted_weather_stress_display"] = "<Xinjiang V0.2 dependent composite>"
-            result["regions"] = ["<Xinjiang V0.2 region>" if row.get("id") == "china" else row for row in result["regions"]]
-            result["seasonal"]["china"] = "<Xinjiang V0.2 seasonal and raw layer>"
-            for region_id in ("us", "brazil", "india"):
+            result["five_region_production_weighted_weather_stress_display"] = "<regional V0.2 dependent composite>"
+            changed_regions = {"china", "us", "brazil", "australia"}
+            result["regions"] = ["<regional V0.2 successor>" if row.get("id") in changed_regions else row for row in result["regions"]]
+            for region_id in changed_regions:
+                result["seasonal"][region_id] = "<regional V0.2 seasonal layer>"
+            for region_id in ("india",):
                 season = result["seasonal"][region_id]
                 season["raw_weather"]["source_file_max_date"] = "<append-only source max>"
                 for metric in season["raw_metrics"].values():
@@ -1106,7 +1122,7 @@ class PublicDashboardTest(unittest.TestCase):
     def test_published_data_fetch_is_versioned_for_cache_busting(self):
         for page in (ROOT / "index.html", ROOT / "dist/index.html"):
             html = page.read_text(encoding="utf-8")
-            self.assertIn("fetch('./data.json?v=20260929-v08-xinjiang-continuous-temperature')", html)
+            self.assertIn("fetch('./data.json?v=20260929-v10-regional-continuous-temperature')", html)
             self.assertNotIn("fetch('./data.json')", html)
 
     def test_temp_builder_is_deterministic(self):
