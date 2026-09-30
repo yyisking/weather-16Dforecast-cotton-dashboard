@@ -7,6 +7,7 @@ import json
 import csv
 import hashlib
 import math
+from functools import lru_cache
 from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
@@ -69,7 +70,7 @@ METRIC_META = {
     "establishment_excess_rain": {"label": "播种建苗期过量降雨", "unit": "分", "window": "逐日因子分"},
     "harvest_rain": {"label": "收获期降雨", "unit": "分", "window": "逐日因子分"},
     "high_temperature": {"label": "高温", "unit": "分", "window": "逐日因子分"},
-    "high_vpd": {"label": "高 VPD", "unit": "分", "window": "逐日因子分"},
+    "high_vpd": {"label": "高水汽压亏缺（VPD，空气干燥度）", "unit": "分", "window": "逐日因子分"},
     "low_solar_radiation": {"label": "低太阳辐射", "unit": "分", "window": "逐日因子分"},
     "hot_dry_compound": {"label": "高温干旱复合", "unit": "分", "window": "逐日因子分"},
     "excess_rain_waterlogging": {"label": "过量降雨／渍涝", "unit": "分", "window": "逐日因子分"},
@@ -110,7 +111,7 @@ REGION_META = {
             ("harvest_rain", "收获期降雨", "harvest_rain_score"),
             ("root_zone_dryness", "根区干旱", "root_zone_dryness_score"),
             ("high_temperature", "高温", "high_temperature_score"),
-            ("high_vpd", "高 VPD", "high_vpd_score"),
+            ("high_vpd", "高水汽压亏缺（VPD，空气干燥度）", "high_vpd_score"),
             ("low_solar_radiation", "低太阳辐射", "low_solar_radiation_score"),
             ("low_temperature", "低温", "low_temperature_score"),
         ],
@@ -135,7 +136,7 @@ REGION_META = {
             ("low_temperature", "低温", "low_temperature_score"),
             ("high_heat", "高温", "high_heat_score"),
             ("excess_rain", "过量降雨", "excess_rain_score"),
-            ("high_vpd", "高 VPD", "high_vpd_score"),
+            ("high_vpd", "高水汽压亏缺（VPD，空气干燥度）", "high_vpd_score"),
             ("low_solar", "低太阳辐射", "low_solar_score"),
         ],
     },
@@ -162,6 +163,26 @@ SEASON_WINDOWS = {
 CENTRAL_WINDOW = ("03-01", "10-31", "03-01—10-31（页面代理窗口；未核实当地作季）",
                   "display_window_proxy_not_verified_local_stage_calendar")
 AUSTRALIA_WINDOW = ("09-01", "06-30", "澳洲 09-01—次年 06-30", "user_defined_cross_year_display_window")
+
+# Chart-only cropping. The score arrays remain full length for audit/replay.
+# Multi-period Australia excess-rain display intentionally concatenates two
+# enabled spans; the note tells viewers that the time axis skips Nov–Feb.
+CHART_DISPLAY_WINDOWS = {
+    ("United States", "root_zone_dryness"): (("02-01", "09-30"),),
+    ("United States", "establishment_excess_rain"): (("02-01", "05-31"),),
+    ("United States", "harvest_rain"): (("07-01", "11-30"),),
+    ("Brazil", "harvest_rain"): (("07-01", "09-30"),),
+    ("Brazil", "root_zone_dryness"): (("01-01", "06-30"),),
+    ("Brazil", "high_vpd"): (("01-01", "06-30"),),
+    ("Brazil", "low_solar_radiation"): (("01-01", "08-31"),),
+    ("India", "root_zone_dryness"): (("06-01", "11-30"),),
+    ("India", "hot_dry_compound"): (("06-01", "11-30"),),
+    ("Australia", "low_temperature"): (("09-01", "04-30"),),
+    ("Australia", "high_heat"): (("09-01", "04-30"),),
+    ("Australia", "excess_rain"): (("09-01", "10-31"), ("03-01", "04-30")),
+    ("Australia", "high_vpd"): (("11-01", "02-28"),),
+    ("Australia", "low_solar"): (("09-01", "04-30"),),
+}
 
 # V0.5 raw-weather display inputs.  These are deliberately separate from the
 # score daily files above: the score contract is copied unchanged and the raw
@@ -300,6 +321,24 @@ def _compress_periods(keys: list[str], active_keys: set[str]) -> list[dict[str, 
         previous = index
     periods.append({"start": keys[start], "end": keys[previous]})
     return periods
+
+
+def _apply_chart_display_window(metric_payload: dict, geography: str, metric_id: str) -> None:
+    periods = CHART_DISPLAY_WINDOWS.get((geography, metric_id))
+    if not periods:
+        return
+    if len(periods) == 1:
+        start, end = periods[0]
+        metric_payload.update({
+            "chart_display_start": start,
+            "chart_display_end": end,
+            "chart_display_note": f"图轴仅显示当地该因子启用期 {start}—{end}；启用期外不展示。",
+        })
+    else:
+        metric_payload.update({
+            "chart_display_periods": [{"start": start, "end": end} for start, end in periods],
+            "chart_display_note": "图轴拼接显示当地因子启用期 09-01—10-31 与 03-01—04-30；11月至次年2月未启用并从图轴隐藏，横轴不连续。",
+        })
 
 
 def _status_counts(values: list[str]) -> dict[str, int]:
@@ -485,6 +524,7 @@ def build_seasonal(geography: str) -> dict:
                 "chart_display_end": "05-31",
                 "chart_display_note": "图轴仅显示春季风害评分启用期 04-01—05-31；6—11月不展示。",
             })
+        _apply_chart_display_window(meta, geography, metric)
         metrics[metric] = meta
     return {
         "status": "available" if metrics else "gap",
@@ -544,6 +584,7 @@ def build_australia_seasonal() -> dict:
                     pass
     metrics = {}
     source_max_date = max(source_dates)
+    historical_factor_bands = _australia_historical_factor_bands(keys)
 
     def season_trace(metric: str, season_start: int) -> list[float | None]:
         values = []
@@ -593,6 +634,16 @@ def build_australia_seasonal() -> dict:
             "status_counts": {"last_year": _status_counts(prior_status), "current_year": _status_counts(current_status)},
             "source_gap_count": prior_status.count("source_gap") + current_status.count("source_gap"),
         }
+        if metric in AUSTRALIA_FACTOR_EXPOSURES:
+            history = historical_factor_bands[metric]
+            metric_payload.update({
+                "history_min": history["history_min"],
+                "history_max": history["history_max"],
+                "history_years": list(AUSTRALIA_HISTORY_SEASON_STARTS),
+                "history_year_count": len(AUSTRALIA_HISTORY_SEASON_STARTS),
+                "history_year_semantics": "crop_season_start_year",
+                "historical_band_note": "历史带为1991/92—2024/25 ERA5单因子回算（1991—2024同历日基准），属回顾性描述，非PIT，未校准。",
+            })
         if metric in {"low_temperature", "high_heat"}:
             metric_payload.update({
                 "display_role": "local_calendar_continuous_temperature_factor_score",
@@ -600,6 +651,7 @@ def build_australia_seasonal() -> dict:
                 "stage_weight_note": "澳洲V0.2在9月至次年4月当地模型窗口连续监测高温与低温；V0.1原主权重保留，原硬排除方向以0.5暂定次要权重纳入。权重未校准。",
                 "theoretical_not_calibrated": True,
             })
+        _apply_chart_display_window(metric_payload, "Australia", metric)
         metrics[metric] = metric_payload
     return {
         "status": "available" if metrics else "gap", "source": str(AUSTRALIA_DAILY_PATH.relative_to(COTTON_ROOT)),
@@ -640,6 +692,98 @@ def _rolling_point_values(records: dict[date, dict[str, float | None]], metric: 
             result[day] = math.fsum(values) if mode == "sum" else math.fsum(values) / 14.0
         else:
             result[day] = None
+    return result
+
+
+AUSTRALIA_HISTORY_SEASON_STARTS = tuple(range(1991, 2025))
+AUSTRALIA_FACTOR_EXPOSURES = {
+    "low_temperature": ("tmin", "mean", "low", frozenset((9, 10, 11, 12, 1, 2, 3, 4))),
+    "high_heat": ("tmax", "mean", "high", frozenset((9, 10, 11, 12, 1, 2, 3, 4))),
+    "excess_rain": ("precip", "sum", "high", frozenset((9, 10, 3, 4))),
+    "high_vpd": ("vpd_max", "mean", "high", frozenset((11, 12, 1, 2))),
+    "low_solar": ("sw_rad", "sum", "low", frozenset((9, 10, 11, 12, 1, 2, 3, 4))),
+}
+
+
+def _australia_historical_factor_bands(keys: list[str]) -> dict[str, dict[str, list[float | None]]]:
+    """Rebuild retrospective Australian single-factor score bands from accepted ERA5.
+
+    Each 14-day point exposure is scored against 1991–2024 same-calendar-day
+    exposures with the V0.1 midrank adverse-tail rule. Seven accepted points
+    contribute equally; coverage is measured against the eight-point network
+    and must be at least 0.60. The result is descriptive retrospective history,
+    not a point-in-time replay or calibration.
+    """
+    records, _source_max = _load_australia_records()
+    point_exposures = {
+        point: {
+            metric: _rolling_point_values(records[point], source, mode)
+            for metric, (source, mode, _tail, _months) in AUSTRALIA_FACTOR_EXPOSURES.items()
+        }
+        for point in records
+    }
+    reference_samples = {
+        metric: {
+            point: {
+                key: [
+                    exposures[metric][date(year, int(key[:2]), int(key[3:]))]
+                    for year in range(1991, 2025)
+                    if (int(key[:2]), int(key[3:])) != (2, 29)
+                    and date(year, int(key[:2]), int(key[3:])) in exposures[metric]
+                    and exposures[metric][date(year, int(key[:2]), int(key[3:]))] is not None
+                ]
+                for key in set(keys)
+            }
+            for point, exposures in point_exposures.items()
+        }
+        for metric in AUSTRALIA_FACTOR_EXPOSURES
+    }
+
+    def midrank(current: float, reference: list[float], tail: str) -> float | None:
+        if len(reference) < 20:
+            return None
+        percentile = (sum(value < current for value in reference) + 0.5 * sum(value == current for value in reference)) / len(reference)
+        if tail == "high":
+            return min(100.0, max(0.0, 200.0 * max(0.0, percentile - 0.5)))
+        return min(100.0, max(0.0, 200.0 * max(0.0, 0.5 - percentile)))
+
+    result: dict[str, dict[str, list[float | None]]] = {}
+    for metric, (_source, _mode, tail, active_months) in AUSTRALIA_FACTOR_EXPOSURES.items():
+        season_scores: list[list[float | None]] = []
+        for season_start in AUSTRALIA_HISTORY_SEASON_STARTS:
+            trace: list[float | None] = []
+            for key in keys:
+                month, day = (int(part) for part in key.split("-"))
+                if month not in active_months:
+                    trace.append(None)
+                    continue
+                target_year = season_start if month >= 9 else season_start + 1
+                try:
+                    target_day = date(target_year, month, day)
+                except ValueError:
+                    trace.append(None)
+                    continue
+                point_scores = []
+                for point, exposures in point_exposures.items():
+                    value = exposures[metric].get(target_day)
+                    if value is None:
+                        continue
+                    reference = reference_samples[metric][point][key]
+                    scored = midrank(value, reference, tail)
+                    if scored is not None:
+                        point_scores.append(scored)
+                if len(point_scores) / 8.0 >= 0.60:
+                    trace.append(round(math.fsum(point_scores) / len(point_scores), 2))
+                else:
+                    trace.append(None)
+            season_scores.append(trace)
+        history_min = []
+        history_max = []
+        for index in range(len(keys)):
+            valid = [trace[index] for trace in season_scores if trace[index] is not None]
+            history_min.append(min(valid) if valid else None)
+            history_max.append(max(valid) if valid else None)
+        result[metric] = {"history_min": history_min, "history_max": history_max}
     return result
 
 
@@ -816,10 +960,12 @@ def _validated_australia_files() -> list[Path]:
     return accepted
 
 
+@lru_cache(maxsize=1)
 def _load_australia_records() -> tuple[dict[str, dict[date, dict[str, float | None]]], date]:
     au_sources = {
         "tmax": "temperature_2m_max", "tmin": "temperature_2m_min",
         "precip": "precipitation_sum", "sw_rad": "shortwave_radiation_sum",
+        "vpd_max": "vapour_pressure_deficit_max",
     }
     records = {}
     for path in _validated_australia_files():
@@ -831,7 +977,7 @@ def _load_australia_records() -> tuple[dict[str, dict[date, dict[str, float | No
         records[point] = {}
         for index, raw_date in enumerate(daily["time"]):
             parsed = date.fromisoformat(raw_date)
-            records[point][parsed] = {source: _number(daily[au_sources[source]][index]) for _label, _unit, source, _mode in RAW_LABELS.values()}
+            records[point][parsed] = {field: _number(daily[source][index]) for field, source in au_sources.items()}
     source_max = max(max(values) for values in records.values())
     return records, source_max
 
@@ -1052,7 +1198,7 @@ def build_central_asia_seasonal() -> dict:
     labels = {
         "temperature_2m_max": ("日最高温", "°C"), "temperature_2m_min": ("日最低温", "°C"),
         "precipitation_sum": ("日降水", "mm"), "shortwave_radiation_sum": ("日短波辐射", "MJ/m²"),
-        "et0_fao_evapotranspiration": ("日参考蒸散", "mm"), "vapour_pressure_deficit_max": ("日最大VPD", "kPa"),
+        "et0_fao_evapotranspiration": ("日参考蒸散", "mm"), "vapour_pressure_deficit_max": ("日最大水汽压亏缺（VPD）", "kPa"),
     }
     result = {}
     for aoi_name, rows in rows_by_aoi.items():
@@ -1210,6 +1356,7 @@ def build_central_asia_watch() -> list[dict]:
         enriched = dict(row)
         enriched["id"] = CENTRAL_ASIA_IDS[row["aoi_name"]]
         enriched["country_label"] = row["country"]
+        enriched["confidence_display"] = "仅用作当地天气异常度观察" if row.get("confidence") == "low" else CONFIDENCE_DISPLAY.get(row.get("confidence"), "暂无")
         result.append(enriched)
     return result
 
