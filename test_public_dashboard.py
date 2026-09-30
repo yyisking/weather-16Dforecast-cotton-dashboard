@@ -1108,7 +1108,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("历史带不含补造的澳洲历史分", self.payload["five_region_production_weighted_weather_stress_display"]["seasonal_metric"]["historical_band_note"])
         self.assertIn("覆盖不足不按0处理", html)
         self.assertIn("M.nonnegative?Math.max(0,lo-extra):lo-extra", html)
-        self.assertIn("v=20260930-v13-national-coverage", html)
+        self.assertIn("v=20260930-v14-region-browser", html)
         self.assertNotIn("v=20260923-v05-raw-weather", html)
         self.assertIn("data-chart-region=\"${weightedId}\"", html)
         self.assertIn("const first=app.querySelector('.hero')", html)
@@ -1260,12 +1260,13 @@ class PublicDashboardTest(unittest.TestCase):
 
     def test_page_and_publish_files_are_synced_and_safe(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
-        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "全球棉花五大种植区域天气胁迫总评分（产区产量加权）", "产量加权详情", "共同截止", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.7", "USDA供需截止", "天气因子原始数据", "模型天气胁迫单因子评分", "Tmax日最高温度（14天移动平均）", "Tmin日最低温度（14天移动平均）", "TP累计降水量（14天累计滚动值）", "SWd日短波辐射（14日移动平均）", "MJ/m²/日", "天气原值与理论分数均未换算为 USDA 产量", "太阳辐射模型状态："):
+        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "分区域查看", "查看区域详情", "当前区域详情", "所选国家／代理区内部网络", "地区分项", "展开完整州／邦／AOI 表格", "全球棉花五大种植区域天气胁迫总评分（产区产量加权）", "产量加权详情", "共同截止", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.7", "USDA供需截止", "天气因子原始数据", "模型天气胁迫单因子评分", "Tmax日最高温度（14天移动平均）", "Tmin日最低温度（14天移动平均）", "TP累计降水量（14天累计滚动值）", "SWd日短波辐射（14日移动平均）", "MJ/m²/日", "天气原值与理论分数均未换算为 USDA 产量", "太阳辐射模型状态："):
             self.assertIn(phrase, html)
         self.assertIn("<title>棉花供需与天气胁迫看板 V0.7</title>", html)
         self.assertNotIn("看板 V0.5", html)
         self.assertIn("正式 global_numeric_weather_score 仍未生成；上方五区产量加权分仅为展示合成，未执行天气到供给数量的换算。", html)
         self.assertIn("M.solar_display_status", html)
+        self.assertIn("displayDate=M.display_cutoff_date||r.date||''", html)
         self.assertIn("first.insertAdjacentHTML('beforebegin',weightedPanel(c))", html)
         self.assertNotIn("澳大利亚未接入官方供需数量", html)
         self.assertNotIn("bullish", html.lower())
@@ -1294,7 +1295,7 @@ class PublicDashboardTest(unittest.TestCase):
     def test_published_data_fetch_is_versioned_for_cache_busting(self):
         for page in (ROOT / "index.html", ROOT / "dist/index.html"):
             html = page.read_text(encoding="utf-8")
-            self.assertIn("fetch('./data.json?v=20260930-v13-national-coverage')", html)
+            self.assertIn("fetch('./data.json?v=20260930-v14-region-browser')", html)
             self.assertNotIn("fetch('./data.json')", html)
 
     def test_temp_builder_is_deterministic(self):
