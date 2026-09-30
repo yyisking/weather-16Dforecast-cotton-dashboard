@@ -69,6 +69,12 @@ FROZEN_INPUT_SHAS = {
     COTTON / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_2_refresh_2026_09_29_daily.csv": "e8500c236e69eb1e1005fa1478b65d95d905b106544cd4e976dfc7ad6d1a582d",
     COTTON / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_refresh_2026_09_29_daily.csv": "f7b56102ea878ad3572747c7bf5e56e07020d61e12cf8a42e4ffd76e07c506c4",
     COTTON / "au_weather/derived/australia_theoretical_weather_stress_index_v0_2_daily.csv": "693561f5558b240b2409cfd5e9f1b2cd0a12e5facfb50184da593ba27091cf25",
+    COTTON / "research/raw/australia_st_george_era5_daily_v0_1/st_george_era5_daily.json": "6d249f9f5ae2fe390f3b0b183eabaf967f9dd6d32eba520f4d3e6220fc0a43f2",
+    COTTON / "research/raw/australia_st_george_era5_daily_v0_1/source_manifest_v0_1.json": "0658498ca3e6ab473436228b705e49375a37401cc7baf2a3665d05ff9226551c",
+    COTTON / "us_weather/derived/us_national_theoretical_weather_stress_index_v0_1_daily.csv": "acaefa10e8e87c97c11fd7ea005a4e26113fb32064d848954b8b516a677b6f5a",
+    COTTON / "br_weather/derived/brazil_national_theoretical_weather_stress_index_v0_1_daily.csv": "0f5489fc0c48cba334556e17077cf4807a6e7d9304608cf606e3b2a25e32359d",
+    COTTON / "in_weather/derived/india_national_theoretical_weather_stress_index_v0_1_daily.csv": "7d6002f4d0f07862b5169d25387febbe39df9219502c52fcf2fc68d774303ee4",
+    COTTON / "au_weather/derived/australia_national_theoretical_weather_stress_index_v0_3_daily.csv": "1d3487ccaa13b041e82bec2a1a0e1c136c4e240c12b21da6cba0cec77e394beb",
     COTTON / "model_status.json": "b3fbabe71bd15c1bc0ef65d2b4e34f3621a184383c3f89d8a9320a896a2daf0d",
 }
 FROZEN_RAW_POINT_SEMANTIC_SHAS = {
@@ -226,7 +232,9 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertEqual(australia["point_coverage"], self.au_latest["point_coverage"])
         self.assertEqual(australia["confidence"], self.au_latest["confidence"])
         self.assertEqual(australia["gap_codes"], self.au_latest["gap_codes"])
-        self.assertEqual(australia["point_coverage"], 0.875)
+        self.assertEqual(australia["point_coverage"], 1.0)
+        self.assertEqual(australia["target_point_count"], 8)
+        self.assertEqual(australia["valid_point_count"], 8)
         supply = next(row for row in self.brief["rows"] if row["geography"] == "Australia")
         official = australia["official_supply"]
         self.assertEqual(official["production_change_1000_480lb_bales"], supply["production_change_1000_480lb_bales"])
@@ -245,12 +253,60 @@ class PublicDashboardTest(unittest.TestCase):
 
     def test_existing_region_scores_and_null_factors_are_preserved(self):
         for region in self.payload["regions"][:4]:
-            raw = json.loads(builder.REGION_PATHS[region["geography"]].read_text(encoding="utf-8"))
+            path = builder.NATIONAL_LATEST_PATHS.get(region["geography"], builder.REGION_PATHS[region["geography"]])
+            raw = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(region["score"], raw["theoretical_weather_stress_index"])
+            self.assertEqual(region["source_path"], str(path.relative_to(COTTON)))
         brazil = next(region for region in self.payload["regions"] if region["id"] == "brazil")
         unavailable = [factor for factor in brazil["factors"] if factor["score"] is None]
         self.assertGreaterEqual(len(unavailable), 1)
         self.assertTrue(all(factor["status"] == "not_available_or_inactive" for factor in unavailable))
+
+    def test_v13_national_network_sources_coverage_and_china_proxy_are_explicit(self):
+        regions = {region["geography"]: region for region in self.payload["regions"]}
+        expected = {
+            "United States": ("us_weather/derived/us_national_theoretical_weather_stress_index_v0_1_latest.json", 34, 34, 16, 0.991744),
+            "Brazil": ("br_weather/derived/brazil_national_theoretical_weather_stress_index_v0_1_latest.json", 21, 30, 11, 0.9964990451941439),
+            "India": ("in_weather/derived/india_national_theoretical_weather_stress_index_v0_1_latest.json", 26, 26, 10, 0.9636608344549125),
+            "Australia": ("au_weather/derived/australia_national_theoretical_weather_stress_index_v0_3_latest.json", 8, 8, 8, 0.92252511),
+        }
+        for geography, (source_path, valid, target, detail_count, production_coverage) in expected.items():
+            region = regions[geography]
+            self.assertEqual(region["source_path"], source_path)
+            self.assertEqual(region["valid_point_count"], valid)
+            self.assertEqual(region["target_point_count"], target)
+            self.assertEqual(len(region["network_details"]), detail_count)
+            self.assertAlmostEqual(region["official_production_weight_coverage"], production_coverage, places=9)
+            self.assertAlmostEqual(
+                math.fsum(row.get("production_weight_share") or 0.0 for row in region["network_details"]),
+                1.0,
+                places=8,
+            )
+            self.assertTrue(region["theoretical_not_calibrated"])
+
+        china = regions["China"]
+        self.assertEqual(china["name"], "中国（新疆代理）")
+        self.assertIn("非中国全国", china["network_details"][0]["name"])
+        self.assertIsNone(china["official_production_weight_coverage"])
+        self.assertIsNone(china["network_details"][0]["production_weight_share"])
+
+        australia = regions["Australia"]
+        self.assertEqual(australia["raw_network_name"], "澳洲8 AOI 原始天气网络")
+        self.assertIn("含 St George", australia["raw_network_note"])
+        self.assertNotIn("旧7点", australia["raw_network_note"])
+
+        expected_daily = {
+            "China": "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_2_daily.csv",
+            "United States": "us_weather/derived/us_national_theoretical_weather_stress_index_v0_1_daily.csv",
+            "Brazil": "br_weather/derived/brazil_national_theoretical_weather_stress_index_v0_1_daily.csv",
+            "India": "in_weather/derived/india_national_theoretical_weather_stress_index_v0_1_daily.csv",
+            "Australia": "au_weather/derived/australia_national_theoretical_weather_stress_index_v0_3_daily.csv",
+        }
+        composite = self.payload["five_region_production_weighted_weather_stress_display"]
+        self.assertEqual(composite["weather_input_paths"], expected_daily)
+        self.assertEqual(composite["common_cutoff_date"], "2026-09-10")
+        self.assertTrue(composite["not_calibrated"])
+        self.assertTrue(composite["not_unified_model"])
 
     def test_xinjiang_v02_three_phase_temperature_scores_are_independently_rebuilt(self):
         points = tuple(builder.RAW_POINT_CONFIG["China"]["points"])
@@ -368,8 +424,8 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIsNone(score["current_year"][score["day_keys"].index("09-11")])
         self.assertIsNone(score["last_year"][score["day_keys"].index("05-01")])
 
-        # Reconstruct one day per factor independently from the seven raw ERA5
-        # responses; do not use dashboard helper functions or cached payloads.
+        # Reconstruct one day per factor independently from all eight raw ERA5
+        # responses and the V0.3 AOI production allocations.
         manifest = json.loads(builder.AUSTRALIA_MANIFEST_PATH.read_text(encoding="utf-8"))
         raw_points = []
         for source in manifest["raw_responses"]:
@@ -387,7 +443,20 @@ class PublicDashboardTest(unittest.TestCase):
                     "solar": daily["shortwave_radiation_sum"][index],
                 }
             raw_points.append(point)
-        self.assertEqual(len(raw_points), 7)
+        st_manifest = json.loads(builder.AUSTRALIA_ST_GEORGE_MANIFEST_PATH.read_text(encoding="utf-8"))
+        st_raw = json.loads((COTTON.parent / st_manifest["raw_response_path"]).read_text(encoding="utf-8"))
+        daily = st_raw["daily"]
+        raw_points.append({date.fromisoformat(day): {
+            "tmin": daily["temperature_2m_min"][index], "tmax": daily["temperature_2m_max"][index],
+            "precip": daily["precipitation_sum"][index], "vpd": daily["vapour_pressure_deficit_max"][index],
+            "solar": daily["shortwave_radiation_sum"][index],
+        } for index, day in enumerate(daily["time"])})
+        self.assertEqual(len(raw_points), 8)
+        point_names = list(builder.AUSTRALIA_FILE_AOI.values())
+        latest = json.loads(builder.AUSTRALIA_LATEST_PATH.read_text(encoding="utf-8"))
+        weight_by_name = {row["aoi_name"]: row["valid_weight_kt"] for row in latest["aoi_components"]}
+        total_weight = math.fsum(weight_by_name.values())
+        weights = [weight_by_name[name] / total_weight for name in point_names]
 
         def independent_exposure(point, day, source, mode):
             vals = [point.get(day - timedelta(days=offset), {}).get(source) for offset in range(13, -1, -1)]
@@ -409,7 +478,7 @@ class PublicDashboardTest(unittest.TestCase):
                 target_year = season_start if month >= 9 else season_start + 1
                 target = date(target_year, month, daynum)
                 point_scores = []
-                for point in raw_points:
+                for point_index, point in enumerate(raw_points):
                     value = independent_exposure(point, target, source, mode)
                     if value is None:
                         continue
@@ -422,9 +491,11 @@ class PublicDashboardTest(unittest.TestCase):
                     if len(reference) < 20:
                         continue
                     percentile = (sum(v < value for v in reference) + 0.5 * sum(v == value for v in reference)) / len(reference)
-                    point_scores.append(min(100.0, max(0.0, 200.0 * max(0.0, percentile - 0.5) if tail == "high" else 200.0 * max(0.0, 0.5 - percentile))))
-                if len(point_scores) / 8.0 >= 0.60:
-                    season_scores.append(round(math.fsum(point_scores) / len(point_scores), 2))
+                    score = min(100.0, max(0.0, 200.0 * max(0.0, percentile - 0.5) if tail == "high" else 200.0 * max(0.0, 0.5 - percentile)))
+                    point_scores.append((weights[point_index], score))
+                valid_weight = math.fsum(weight for weight, _score in point_scores)
+                if valid_weight >= 0.60:
+                    season_scores.append(round(math.fsum(weight * score for weight, score in point_scores) / valid_weight, 2))
             metric = seasonal["metrics"][metric_id]
             index = metric["day_keys"].index(key)
             self.assertEqual(metric["history_min"][index], min(season_scores), metric_id)
@@ -577,9 +648,9 @@ class PublicDashboardTest(unittest.TestCase):
     def test_score_scale_status_arrays_and_source_gap_counts_are_independent(self):
         region_inputs = {
             "China": ("china", builder.DAILY_PATHS["China"], {"score": "theoretical_weather_stress_index", **{x[0]: x[2] for x in builder.REGION_META["China"]["factor_fields"]}}),
-            "United States": ("us", builder.DAILY_PATHS["United States"], {"score": "theoretical_weather_stress_index", **{x[0]: x[2] for x in builder.REGION_META["United States"]["factor_fields"]}}),
-            "Brazil": ("brazil", builder.DAILY_PATHS["Brazil"], {"score": "theoretical_weather_stress_index", **{x[0]: x[2] for x in builder.REGION_META["Brazil"]["factor_fields"]}}),
-            "India": ("india", builder.DAILY_PATHS["India"], {"score": "theoretical_weather_stress_index", **{x[0]: x[2] for x in builder.REGION_META["India"]["factor_fields"]}}),
+            "United States": ("us", builder.NATIONAL_DAILY_PATHS["United States"], {"score": "theoretical_weather_stress_index", **{x[0]: x[2] for x in builder.REGION_META["United States"]["factor_fields"]}}),
+            "Brazil": ("brazil", builder.NATIONAL_DAILY_PATHS["Brazil"], {"score": "theoretical_weather_stress_index", **{x[0]: x[2] for x in builder.REGION_META["Brazil"]["factor_fields"]}}),
+            "India": ("india", builder.NATIONAL_DAILY_PATHS["India"], {"score": "theoretical_weather_stress_index", **{x[0]: x[2] for x in builder.REGION_META["India"]["factor_fields"]}}),
             "Australia": ("australia", builder.AUSTRALIA_DAILY_PATH, {"score": "theoretical_weather_stress_index", **{x[0]: x[2] for x in builder.REGION_META["Australia"]["factor_fields"]}}),
         }
 
@@ -645,7 +716,7 @@ class PublicDashboardTest(unittest.TestCase):
                             self.assertIsNone(values[index], (geography, metric, year_label, key))
                         else:
                             self.assertEqual(values[index], expected_value, (geography, metric, year_label, key))
-                        if key not in active[metric] or (geography == "Australia" and month in (5, 6)):
+                        if key not in active[metric]:
                             expected_status = "inactive_stage"
                         elif year_label == "current_year" and date(source_year, month, day) > source_max:
                             expected_status = "future"
@@ -716,8 +787,12 @@ class PublicDashboardTest(unittest.TestCase):
                 self.assertEqual(metric["valid_current_point_count"], len(points))
                 self.assertAlmostEqual(metric["current_spatial_coverage"], 1.0)
         australia = self.payload["seasonal"]["australia"]["raw_metrics"]
-        self.assertEqual([australia[k]["current_year"][australia[k]["day_keys"].index("09-10")] for k in ("tmax_14d_mean", "tmin_14d_mean", "precip_14d_sum", "sw_rad_14d_mean")], [24.622448979591837, 9.264285714285714, 0.3428571428571428, 19.187755102040814])
-        self.assertEqual(australia["tmax_14d_mean"]["valid_current_point_count"], 7)
+        self.assertEqual(
+            [australia[k]["current_year"][australia[k]["day_keys"].index("09-10")] for k in ("tmax_14d_mean", "tmin_14d_mean", "precip_14d_sum", "sw_rad_14d_mean")],
+            [24.66575012898245, 9.22891650974228, 0.318339133125972, 19.271064705932012],
+        )
+        self.assertEqual(australia["tmax_14d_mean"]["valid_current_point_count"], 8)
+        self.assertEqual(australia["tmax_14d_mean"]["target_point_count"], 8)
         for region_id, status in (("china", "observed_only_excluded_pending_dedup"), ("us", "observed_only_excluded_local_direction_gap"), ("brazil", "included_in_model_contract"), ("india", "observed_only_excluded_pending_dedup"), ("australia", "included_and_active_in_current_stage")):
             self.assertEqual(self.payload["seasonal"][region_id]["raw_metrics"]["sw_rad_14d_mean"]["solar_model_status"], status)
         solar_labels = {
@@ -794,11 +869,16 @@ class PublicDashboardTest(unittest.TestCase):
             self.assertEqual(source["status"], "complete_response")
             self.assertEqual(row["anchor_name"], source["anchor_name"])
             accepted.append(COTTON.parent / Path(source["raw_response_path"]))
-        self.assertEqual(len(accepted), 7)
+        st_manifest = json.loads(builder.AUSTRALIA_ST_GEORGE_MANIFEST_PATH.read_text(encoding="utf-8"))
+        accepted.append(COTTON.parent / st_manifest["raw_response_path"])
+        self.assertEqual(len(accepted), 8)
         source_fields = ("temperature_2m_max", "temperature_2m_min", "precipitation_sum", "shortwave_radiation_sum")
         cutoff = date(2026, 9, 10)
-        point_values = {field: [] for field in source_fields}
-        for path in accepted:
+        point_values = {field: {} for field in source_fields}
+        point_names = [builder.AUSTRALIA_FILE_AOI[path.name] for path in accepted]
+        latest_weights = {row["aoi_name"]: row["valid_weight_kt"] for row in self.au_latest["aoi_components"]}
+        total_weight = math.fsum(latest_weights.values())
+        for path, point_name in zip(accepted, point_names):
             payload = json.loads(path.read_text(encoding="utf-8"))
             daily = payload["daily"]
             self.assertEqual(daily["time"][0], manifest["source_start_date"])
@@ -806,12 +886,10 @@ class PublicDashboardTest(unittest.TestCase):
             by_day = {date.fromisoformat(day): index for index, day in enumerate(daily["time"])}
             for field in source_fields:
                 window = [float(daily[field][by_day[cutoff - timedelta(days=i)]]) for i in range(13, -1, -1)]
-                point_values[field].append(sum(window) / 14 if field != "precipitation_sum" else sum(window))
-        expected = [24.622448979591837, 9.264285714285714, 0.3428571428571428, 19.187755102040814]
+                point_values[field][point_name] = sum(window) / 14 if field != "precipitation_sum" else sum(window)
         raw = self.payload["seasonal"]["australia"]["raw_metrics"]
-        for field, expected_value, metric_id in zip(source_fields, expected, ("tmax_14d_mean", "tmin_14d_mean", "precip_14d_sum", "sw_rad_14d_mean")):
-            rebuilt = sum(point_values[field]) / len(point_values[field])
-            self.assertAlmostEqual(rebuilt, expected_value, places=12)
+        for field, metric_id in zip(source_fields, ("tmax_14d_mean", "tmin_14d_mean", "precip_14d_sum", "sw_rad_14d_mean")):
+            rebuilt = math.fsum(point_values[field][name] * latest_weights[name] / total_weight for name in point_names)
             metric = raw[metric_id]
             self.assertAlmostEqual(metric["current_year"][metric["day_keys"].index("09-10")], rebuilt, places=12)
 
@@ -954,7 +1032,7 @@ class PublicDashboardTest(unittest.TestCase):
             self.assertAlmostEqual(row["production_weight"], weights[row["region_id"]], places=15)
         daily = {}
         for geo in geographies:
-            path = builder.AUSTRALIA_DAILY_PATH if geo == "Australia" else builder.DAILY_PATHS[geo]
+            path = builder.NATIONAL_DAILY_PATHS[geo] if geo in builder.NATIONAL_DAILY_PATHS else builder.DAILY_PATHS[geo]
             with path.open(encoding="utf-8", newline="") as handle:
                 daily[ids[geo]] = {date.fromisoformat(row["date"]): (None if row.get("theoretical_weather_stress_index", "") == "" else float(row["theoretical_weather_stress_index"])) for row in csv.DictReader(handle)}
         cutoff = date(2026, 9, 10)
@@ -962,7 +1040,7 @@ class PublicDashboardTest(unittest.TestCase):
         expected = math.fsum(weights[rid] * current_scores[rid] for rid in ids.values())
         self.assertEqual(composite["common_cutoff_date"], "2026-09-10")
         self.assertEqual(composite["current_score"], expected)
-        self.assertEqual(composite["current_score"], 32.47874294964914)
+        self.assertAlmostEqual(composite["current_score"], expected, places=12)
         self.assertEqual(composite["weighted_production_coverage"], 1.0)
         self.assertEqual(composite["current_region_scores"], current_scores)
         metric = composite["seasonal_metric"]
@@ -1026,10 +1104,11 @@ class PublicDashboardTest(unittest.TestCase):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         self.assertIn("five_region_production_weighted_weather_stress_display", html)
         self.assertIn("全球棉花五大种植区域天气胁迫总评分（产区产量加权）", html)
-        self.assertIn("历史带不含补造的澳洲历史分", html)
+        self.assertIn("中国天气输入仅为新疆代理，并非中国全国网络", html)
+        self.assertIn("历史带不含补造的澳洲历史分", self.payload["five_region_production_weighted_weather_stress_display"]["seasonal_metric"]["historical_band_note"])
         self.assertIn("覆盖不足不按0处理", html)
         self.assertIn("M.nonnegative?Math.max(0,lo-extra):lo-extra", html)
-        self.assertIn("v=20260930-v12-factor-windows-au-history", html)
+        self.assertIn("v=20260930-v13-national-coverage", html)
         self.assertNotIn("v=20260923-v05-raw-weather", html)
         self.assertIn("data-chart-region=\"${weightedId}\"", html)
         self.assertIn("const first=app.querySelector('.hero')", html)
@@ -1052,9 +1131,9 @@ class PublicDashboardTest(unittest.TestCase):
 
     def test_requested_factor_charts_crop_only_the_configured_enabled_spans(self):
         expected = {
-            "us": {"root_zone_dryness": (("02-01", "09-30"),), "establishment_excess_rain": (("02-01", "05-31"),), "harvest_rain": (("07-01", "11-30"),)},
-            "brazil": {"harvest_rain": (("07-01", "09-30"),), "root_zone_dryness": (("01-01", "06-30"),), "high_vpd": (("01-01", "06-30"),), "low_solar_radiation": (("01-01", "08-31"),)},
-            "india": {"root_zone_dryness": (("06-01", "11-30"),), "hot_dry_compound": (("06-01", "11-30"),)},
+            "us": {"root_zone_dryness": (("03-01", "09-30"),), "high_heat": (("04-01", "08-31"),), "low_temperature": (("02-01", "05-31"), ("07-01", "07-31"), ("09-01", "11-30")), "establishment_excess_rain": (("02-01", "06-30"),), "harvest_rain": (("07-01", "11-30"),)},
+            "brazil": {"harvest_rain": (("02-01", "09-30"),), "root_zone_dryness": (("01-01", "06-30"), ("09-01", "12-31")), "high_temperature": (("01-01", "06-30"), ("09-01", "12-31")), "low_temperature": (("01-01", "10-31"),), "high_vpd": (("01-01", "06-30"), ("09-01", "12-31")), "low_solar_radiation": (("01-01", "08-31"), ("10-01", "12-31"))},
+            "india": {"score": (("05-01", "12-31"), ("01-01", "01-31")), "root_zone_dryness": (("05-01", "12-31"), ("01-01", "01-31")), "hot_dry_compound": (("05-01", "12-31"), ("01-01", "01-31")), "excess_rain_waterlogging": (("05-01", "12-31"), ("01-01", "01-31"))},
             "australia": {"low_temperature": (("09-01", "04-30"),), "high_heat": (("09-01", "04-30"),), "excess_rain": (("09-01", "10-31"), ("03-01", "04-30")), "high_vpd": (("11-01", "02-28"),), "low_solar": (("09-01", "04-30"),)},
         }
         for region_id, metrics in expected.items():
@@ -1082,7 +1161,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertEqual(composite["id"], "five_region_production_weighted_weather_stress_display")
         self.assertEqual(composite["label"], title)
         self.assertEqual(composite["seasonal_metric"]["label"], title)
-        self.assertEqual(composite["current_score"], 32.47874294964914)
+        self.assertAlmostEqual(composite["current_score"], 34.81420575641262, places=12)
 
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         self.assertIn("<title>棉花供需与天气胁迫看板 V0.7</title>", html)
@@ -1093,7 +1172,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertNotIn("当前原始天气（14日）", html)
         self.assertNotIn("模型天气胁迫因子", html)
         self.assertIn("温度/短波辐射为截至当日过去14天日值平均；降水为截至当日过去14天累计。", html)
-        self.assertIn("四项均先按点位计算，再按冻结棉区点位网络空间聚合", html)
+        self.assertIn("四项均先按点位计算，再按代表网络空间聚合", html)
         self.assertIn("tmax_14d_mean:'Tmax日最高温度（14天移动平均）'", html)
         self.assertIn("tmin_14d_mean:'Tmin日最低温度（14天移动平均）'", html)
         self.assertIn("precip_14d_sum:'TP累计降水量（14天累计滚动值）'", html)
@@ -1215,7 +1294,7 @@ class PublicDashboardTest(unittest.TestCase):
     def test_published_data_fetch_is_versioned_for_cache_busting(self):
         for page in (ROOT / "index.html", ROOT / "dist/index.html"):
             html = page.read_text(encoding="utf-8")
-            self.assertIn("fetch('./data.json?v=20260930-v12-factor-windows-au-history')", html)
+            self.assertIn("fetch('./data.json?v=20260930-v13-national-coverage')", html)
             self.assertNotIn("fetch('./data.json')", html)
 
     def test_temp_builder_is_deterministic(self):

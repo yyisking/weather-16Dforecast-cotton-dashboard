@@ -19,8 +19,20 @@ COTTON_ROOT = SITE_ROOT.parent
 DIST = SITE_ROOT / "dist"
 
 BRIEF_PATH = COTTON_ROOT / "research/derived/cotton_current_supply_decision_brief_v0_2.json"
-AUSTRALIA_LATEST_PATH = COTTON_ROOT / "au_weather/derived/australia_theoretical_weather_stress_index_v0_2_latest.json"
-AUSTRALIA_DAILY_PATH = COTTON_ROOT / "au_weather/derived/australia_theoretical_weather_stress_index_v0_2_daily.csv"
+AUSTRALIA_LATEST_PATH = COTTON_ROOT / "au_weather/derived/australia_national_theoretical_weather_stress_index_v0_3_latest.json"
+AUSTRALIA_DAILY_PATH = COTTON_ROOT / "au_weather/derived/australia_national_theoretical_weather_stress_index_v0_3_daily.csv"
+NATIONAL_LATEST_PATHS = {
+    "United States": COTTON_ROOT / "us_weather/derived/us_national_theoretical_weather_stress_index_v0_1_latest.json",
+    "Brazil": COTTON_ROOT / "br_weather/derived/brazil_national_theoretical_weather_stress_index_v0_1_latest.json",
+    "India": COTTON_ROOT / "in_weather/derived/india_national_theoretical_weather_stress_index_v0_1_latest.json",
+    "Australia": AUSTRALIA_LATEST_PATH,
+}
+NATIONAL_DAILY_PATHS = {
+    "United States": COTTON_ROOT / "us_weather/derived/us_national_theoretical_weather_stress_index_v0_1_daily.csv",
+    "Brazil": COTTON_ROOT / "br_weather/derived/brazil_national_theoretical_weather_stress_index_v0_1_daily.csv",
+    "India": COTTON_ROOT / "in_weather/derived/india_national_theoretical_weather_stress_index_v0_1_daily.csv",
+    "Australia": AUSTRALIA_DAILY_PATH,
+}
 CENTRAL_ASIA_WATCH_PATH = COTTON_ROOT / "research/derived/central_asia_cotton_current_weather_watch_v0_2.json"
 CENTRAL_ASIA_SEASONAL_PATH = COTTON_ROOT / "research/derived/australia_central_asia_cotton_era5_daily_seasonality_v0_2.csv"
 REGION_PATHS = {
@@ -79,7 +91,7 @@ METRIC_META = {
 REGION_META = {
     "China": {
         "id": "china",
-        "name": "中国 · 新疆",
+        "name": "中国（新疆代理）",
         "short_name": "新疆",
         "stage_display": "北疆吐絮；南疆与东疆处于吐絮—采收期代理",
         "factor_fields": [
@@ -91,9 +103,9 @@ REGION_META = {
     },
     "United States": {
         "id": "us",
-        "name": "美国 · 得州",
-        "short_name": "得州",
-        "stage_display": "得州各分区典型作物日历代理",
+        "name": "美国全国既有天气网络",
+        "short_name": "美国全国网络",
+        "stage_display": "六类作制/产区日历代理；全国既有天气网络汇总",
         "factor_fields": [
             ("root_zone_dryness", "根区干旱", "root_zone_dryness_score"),
             ("high_heat", "高温", "high_heat_score"),
@@ -104,9 +116,9 @@ REGION_META = {
     },
     "Brazil": {
         "id": "brazil",
-        "name": "巴西 · 马托格罗索",
-        "short_name": "马托格罗索",
-        "stage_display": "典型当地作物日历代理 · C 阶段",
+        "name": "巴西全国既有天气网络",
+        "short_name": "巴西全国网络",
+        "stage_display": "MT二季棉、BA等首季/雨养混合作制分组代理",
         "factor_fields": [
             ("harvest_rain", "收获期降雨", "harvest_rain_score"),
             ("root_zone_dryness", "根区干旱", "root_zone_dryness_score"),
@@ -118,9 +130,9 @@ REGION_META = {
     },
     "India": {
         "id": "india",
-        "name": "印度 · 中部雨养带",
-        "short_name": "中部雨养带",
-        "stage_display": "中部与特伦加纳开花—结铃期代理",
+        "name": "印度全国既有天气网络",
+        "short_name": "印度全国网络",
+        "stage_display": "北部灌溉、中部雨养混合、南部季风灌溉混合作制代理",
         "factor_fields": [
             ("root_zone_dryness", "根区干旱", "root_zone_dryness_score"),
             ("hot_dry_compound", "高温干旱复合", "hot_dry_compound_score"),
@@ -156,9 +168,9 @@ CONFIDENCE_DISPLAY = {"low": "低", "medium": "中", "high": "高", "limited": "
 
 SEASON_WINDOWS = {
     "China": ("04-01", "11-30", "新疆 04-01—11-30", "verified_stage_scoring_window"),
-    "United States": ("02-01", "11-30", "得州 02-01—11-30", "verified_stage_scoring_window"),
-    "Brazil": ("01-01", "09-30", "巴西 MT 01-01—09-30", "verified_stage_scoring_window"),
-    "India": ("06-01", "12-31", "印度中部雨养带 06-01—12-31", "verified_stage_scoring_window"),
+    "United States": ("02-01", "11-30", "美国全国既有网络 02-01—11-30", "national_network_union_display_window"),
+    "Brazil": ("01-01", "12-31", "巴西全国既有网络全年多作制联合窗口", "national_network_union_display_window"),
+    "India": ("01-01", "12-31", "印度全国既有网络 05—12 月＋次年 1 月联合窗口", "national_network_union_display_window"),
 }
 CENTRAL_WINDOW = ("03-01", "10-31", "03-01—10-31（页面代理窗口；未核实当地作季）",
                   "display_window_proxy_not_verified_local_stage_calendar")
@@ -168,15 +180,21 @@ AUSTRALIA_WINDOW = ("09-01", "06-30", "澳洲 09-01—次年 06-30", "user_defin
 # Multi-period Australia excess-rain display intentionally concatenates two
 # enabled spans; the note tells viewers that the time axis skips Nov–Feb.
 CHART_DISPLAY_WINDOWS = {
-    ("United States", "root_zone_dryness"): (("02-01", "09-30"),),
-    ("United States", "establishment_excess_rain"): (("02-01", "05-31"),),
+    ("United States", "root_zone_dryness"): (("03-01", "09-30"),),
+    ("United States", "high_heat"): (("04-01", "08-31"),),
+    ("United States", "low_temperature"): (("02-01", "05-31"), ("07-01", "07-31"), ("09-01", "11-30")),
+    ("United States", "establishment_excess_rain"): (("02-01", "06-30"),),
     ("United States", "harvest_rain"): (("07-01", "11-30"),),
-    ("Brazil", "harvest_rain"): (("07-01", "09-30"),),
-    ("Brazil", "root_zone_dryness"): (("01-01", "06-30"),),
-    ("Brazil", "high_vpd"): (("01-01", "06-30"),),
-    ("Brazil", "low_solar_radiation"): (("01-01", "08-31"),),
-    ("India", "root_zone_dryness"): (("06-01", "11-30"),),
-    ("India", "hot_dry_compound"): (("06-01", "11-30"),),
+    ("Brazil", "harvest_rain"): (("02-01", "09-30"),),
+    ("Brazil", "root_zone_dryness"): (("01-01", "06-30"), ("09-01", "12-31")),
+    ("Brazil", "high_temperature"): (("01-01", "06-30"), ("09-01", "12-31")),
+    ("Brazil", "low_temperature"): (("01-01", "10-31"),),
+    ("Brazil", "high_vpd"): (("01-01", "06-30"), ("09-01", "12-31")),
+    ("Brazil", "low_solar_radiation"): (("01-01", "08-31"), ("10-01", "12-31")),
+    ("India", "score"): (("05-01", "12-31"), ("01-01", "01-31")),
+    ("India", "root_zone_dryness"): (("05-01", "12-31"), ("01-01", "01-31")),
+    ("India", "hot_dry_compound"): (("05-01", "12-31"), ("01-01", "01-31")),
+    ("India", "excess_rain_waterlogging"): (("05-01", "12-31"), ("01-01", "01-31")),
     ("Australia", "low_temperature"): (("09-01", "04-30"),),
     ("Australia", "high_heat"): (("09-01", "04-30"),),
     ("Australia", "excess_rain"): (("09-01", "10-31"), ("03-01", "04-30")),
@@ -202,7 +220,7 @@ RAW_POINT_CONFIG = {
         "path": COTTON_ROOT / "us_weather/points_daily.csv",
         "points": ("tx_hp_n", "tx_hp_c", "tx_hp_s", "tx_hp_w", "tx_hp_e", "tx_hp_sw", "tx_farwest", "tx_rolling", "tx_edwards", "tx_coastal", "tx_rgv", "tx_black"),
         "weights": {p: (0.64 / 6 if p.startswith("tx_hp_") else 0.36 / 6) for p in ("tx_hp_n", "tx_hp_c", "tx_hp_s", "tx_hp_w", "tx_hp_e", "tx_hp_sw", "tx_farwest", "tx_rolling", "tx_edwards", "tx_coastal", "tx_rgv", "tx_black")},
-        "window": SEASON_WINDOWS["United States"],
+        "window": ("02-01", "11-30", "得州原始天气代表网络 02-01—11-30", "legacy_raw_network_display_window"),
         "cutoff": date(2026, 9, 29),
         "history_years": list(range(2005, 2025)),
         "solar_status": "observed_only_excluded_local_direction_gap",
@@ -211,7 +229,7 @@ RAW_POINT_CONFIG = {
         "path": COTTON_ROOT / "br_weather/points_daily.csv",
         "points": ("mt_campo_novo", "mt_campo_verde", "mt_diamantino", "mt_lucas", "mt_nova_mutum", "mt_nova_ubirata", "mt_primavera", "mt_rondonopolis", "mt_sapezal", "mt_sinop", "mt_sorriso", "mt_tangara"),
         "weights": {p: 1.0 / 12.0 for p in ("mt_campo_novo", "mt_campo_verde", "mt_diamantino", "mt_lucas", "mt_nova_mutum", "mt_nova_ubirata", "mt_primavera", "mt_rondonopolis", "mt_sapezal", "mt_sinop", "mt_sorriso", "mt_tangara")},
-        "window": SEASON_WINDOWS["Brazil"],
+        "window": ("01-01", "09-30", "马托格罗索原始天气代表网络 01-01—09-30", "legacy_raw_network_display_window"),
         "cutoff": date(2026, 9, 28),
         "history_years": list(range(2005, 2025)),
         "solar_status": "included_in_model_contract",
@@ -221,7 +239,7 @@ RAW_POINT_CONFIG = {
         "points": ("gj_rajkot", "gj_surendranagar", "gj_bhavnagar", "gj_amreli", "gj_bharuch", "mh_akola", "mh_amravati", "mh_yavatmal", "mh_buldhana", "mh_jalgaon", "mh_jalna", "mp_khargone", "mp_dhar", "tg_adilabad", "tg_warangal", "tg_khammam"),
         "weights": {"GJ": 0.3404351768, "MH": 0.3739800544, "MP": 0.0643699003, "TG": 0.2212148685},
         "state_points": {"GJ": ("gj_rajkot", "gj_surendranagar", "gj_bhavnagar", "gj_amreli", "gj_bharuch"), "MH": ("mh_akola", "mh_amravati", "mh_yavatmal", "mh_buldhana", "mh_jalgaon", "mh_jalna"), "MP": ("mp_khargone", "mp_dhar"), "TG": ("tg_adilabad", "tg_warangal", "tg_khammam")},
-        "window": SEASON_WINDOWS["India"],
+        "window": ("06-01", "12-31", "印度中部原始天气代表网络 06-01—12-31", "legacy_raw_network_display_window"),
         "cutoff": date(2026, 9, 29),
         "history_years": list(range(2005, 2025)),
         "solar_status": "observed_only_excluded_pending_dedup",
@@ -240,6 +258,8 @@ AUSTRALIA_ERA5_FILES = (
 )
 AUSTRALIA_RAW_DIR = COTTON_ROOT / "research/raw/australia_central_asia_era5_daily_v0_1"
 AUSTRALIA_MANIFEST_PATH = AUSTRALIA_RAW_DIR / "source_manifest_v0_1.json"
+AUSTRALIA_ST_GEORGE_RAW_DIR = COTTON_ROOT / "research/raw/australia_st_george_era5_daily_v0_1"
+AUSTRALIA_ST_GEORGE_MANIFEST_PATH = AUSTRALIA_ST_GEORGE_RAW_DIR / "source_manifest_v0_1.json"
 CENTRAL_ASIA_RETRY_MANIFEST_PATH = COTTON_ROOT / "research/raw/central_asia_era5_gap_retry_v0_1/source_manifest_v0_1.json"
 AUSTRALIA_CROSSWALK_PATH = COTTON_ROOT / "research/derived/australia_central_asia_cotton_point_crosswalk_v0_1.csv"
 AUSTRALIA_EXPECTED_UNITS = {
@@ -335,9 +355,13 @@ def _apply_chart_display_window(metric_payload: dict, geography: str, metric_id:
             "chart_display_note": f"图轴仅显示当地该因子启用期 {start}—{end}；启用期外不展示。",
         })
     else:
+        period_text = "、".join(f"{start}—{end}" for start, end in periods)
+        note = f"图轴仅拼接显示当地因子或综合分启用期：{period_text}；其余日期从图轴隐藏，横轴不连续。"
+        if geography == "Australia" and metric_id == "excess_rain":
+            note = "图轴拼接显示当地因子启用期 09-01—10-31 与 03-01—04-30；11月至次年2月未启用并从图轴隐藏，横轴不连续。"
         metric_payload.update({
             "chart_display_periods": [{"start": start, "end": end} for start, end in periods],
-            "chart_display_note": "图轴拼接显示当地因子启用期 09-01—10-31 与 03-01—04-30；11月至次年2月未启用并从图轴隐藏，横轴不连续。",
+            "chart_display_note": note,
         })
 
 
@@ -376,7 +400,7 @@ def _raw_meta(label: str, unit: str) -> dict:
 
 def build_seasonal(geography: str) -> dict:
     """Build daily seasonal bands and current/prior year traces from approved daily files."""
-    path = DAILY_PATHS[geography]
+    path = NATIONAL_DAILY_PATHS.get(geography, DAILY_PATHS[geography])
     if not path.exists():
         return {"status": "gap", "source": str(path), "metrics": {}}
     with path.open("r", encoding="utf-8", newline="") as handle:
@@ -591,11 +615,7 @@ def build_australia_seasonal() -> dict:
         for key in keys:
             month, day = (int(part) for part in key.split("-"))
             source_year = season_start if month >= 9 else season_start + 1
-            # The frozen V0.1 scoring contract has no May–June score values.
-            if month in (5, 6):
-                values.append(None)
-            else:
-                values.append(year_map[metric].get(source_year, {}).get(key))
+            values.append(year_map[metric].get(source_year, {}).get(key))
         return values
 
     def season_status(metric: str, season_start: int, values: list[float | None]) -> list[str]:
@@ -603,7 +623,7 @@ def build_australia_seasonal() -> dict:
         statuses = []
         for index, key in enumerate(keys):
             month, day = (int(part) for part in key.split("-"))
-            if month in (5, 6) or key not in active_keys:
+            if key not in active_keys:
                 statuses.append("inactive_stage")
                 continue
             source_year = season_start if month >= 9 else season_start + 1
@@ -709,10 +729,10 @@ def _australia_historical_factor_bands(keys: list[str]) -> dict[str, dict[str, l
     """Rebuild retrospective Australian single-factor score bands from accepted ERA5.
 
     Each 14-day point exposure is scored against 1991–2024 same-calendar-day
-    exposures with the V0.1 midrank adverse-tail rule. Seven accepted points
-    contribute equally; coverage is measured against the eight-point network
-    and must be at least 0.60. The result is descriptive retrospective history,
-    not a point-in-time replay or calibration.
+    exposures with the V0.1 midrank adverse-tail rule. All eight validated AOIs
+    contribute with the V0.3 production-allocation weights; valid production
+    weight must be at least 0.60. The result is descriptive retrospective
+    history, not a point-in-time replay or calibration.
     """
     records, _source_max = _load_australia_records()
     point_exposures = {
@@ -747,6 +767,7 @@ def _australia_historical_factor_bands(keys: list[str]) -> dict[str, dict[str, l
             return min(100.0, max(0.0, 200.0 * max(0.0, percentile - 0.5)))
         return min(100.0, max(0.0, 200.0 * max(0.0, 0.5 - percentile)))
 
+    point_weights = _australia_point_weights(point_exposures)
     result: dict[str, dict[str, list[float | None]]] = {}
     for metric, (_source, _mode, tail, active_months) in AUSTRALIA_FACTOR_EXPOSURES.items():
         season_scores: list[list[float | None]] = []
@@ -763,7 +784,7 @@ def _australia_historical_factor_bands(keys: list[str]) -> dict[str, dict[str, l
                 except ValueError:
                     trace.append(None)
                     continue
-                point_scores = []
+                point_scores: dict[str, float] = {}
                 for point, exposures in point_exposures.items():
                     value = exposures[metric].get(target_day)
                     if value is None:
@@ -771,9 +792,10 @@ def _australia_historical_factor_bands(keys: list[str]) -> dict[str, dict[str, l
                     reference = reference_samples[metric][point][key]
                     scored = midrank(value, reference, tail)
                     if scored is not None:
-                        point_scores.append(scored)
-                if len(point_scores) / 8.0 >= 0.60:
-                    trace.append(round(math.fsum(point_scores) / len(point_scores), 2))
+                        point_scores[point] = scored
+                valid_weight = math.fsum(point_weights[point] for point in point_scores)
+                if valid_weight >= 0.60:
+                    trace.append(round(math.fsum(point_weights[point] * score for point, score in point_scores.items()) / valid_weight, 2))
                 else:
                     trace.append(None)
             season_scores.append(trace)
@@ -922,7 +944,7 @@ def _raw_region_old(geography: str) -> dict:
 
 
 def _validated_australia_files() -> list[Path]:
-    """Resolve accepted Australian files from manifest + crosswalk identities."""
+    """Resolve seven crosswalk identities plus the separately validated St George response."""
     manifest = read_json(AUSTRALIA_MANIFEST_PATH)
     if manifest.get("complete_response_count") != 14 or manifest.get("rate_limit_gap_count") != 3:
         raise ValueError("unexpected Australia/central Asia manifest counts")
@@ -955,9 +977,38 @@ def _validated_australia_files() -> list[Path]:
         if not path.is_file():
             raise ValueError(f"missing accepted Australian raw response: {path}")
         accepted.append(path)
-    if len(accepted) != 7:
-        raise ValueError("expected seven accepted Australian raw responses")
+    st_manifest = read_json(AUSTRALIA_ST_GEORGE_MANIFEST_PATH)
+    st_path = AUSTRALIA_ST_GEORGE_RAW_DIR / "st_george_era5_daily.json"
+    if (st_manifest.get("aoi_name") != "St George (QLD)" or st_manifest.get("status") != "complete_response"
+            or st_manifest.get("source_start_date") != "1991-01-01" or st_manifest.get("source_end_date") != "2026-09-10"
+            or st_manifest.get("raw_response_path") != "cotton/research/raw/australia_st_george_era5_daily_v0_1/st_george_era5_daily.json"
+            or not st_path.is_file()):
+        raise ValueError("St George ERA5 manifest/raw identity or date range mismatch")
+    accepted.append(st_path)
+    if len(accepted) != 8:
+        raise ValueError("expected eight validated Australian raw responses")
     return accepted
+
+
+AUSTRALIA_FILE_AOI = {
+    "01_moree_era5_daily.json": "Gwydir Valley (NSW)",
+    "02_narrabri_era5_daily.json": "Namoi Valley (NSW)",
+    "03_narromine_era5_daily.json": "Macquarie Valley (NSW)",
+    "04_griffith_era5_daily.json": "Murrumbidgee Valley (NSW)",
+    "05_dalby_era5_daily.json": "Darling Downs (QLD)",
+    "07_goondiwindi_era5_daily.json": "Border Rivers / Macintyre Valley (QLD-NSW)",
+    "08_emerald_era5_daily.json": "Central Highlands (Emerald/Theodore/Biloela, QLD)",
+    "st_george_era5_daily.json": "St George (QLD)",
+}
+
+
+def _australia_point_weights(points: dict | None = None) -> dict[str, float]:
+    """V0.3 target-state production allocation split to named AOIs by its source weights."""
+    components = read_json(AUSTRALIA_LATEST_PATH).get("aoi_components") or []
+    weights = {row.get("aoi_name"): float(row.get("valid_weight_kt") or 0.0) for row in components}
+    total = math.fsum(weights.values())
+    normalized = {name: value / total for name, value in weights.items()} if total else {}
+    return {name: value for name, value in normalized.items() if points is None or name in points}
 
 
 @lru_cache(maxsize=1)
@@ -971,7 +1022,7 @@ def _load_australia_records() -> tuple[dict[str, dict[date, dict[str, float | No
     for path in _validated_australia_files():
         payload = read_json(path)
         daily = payload["daily"]
-        point = path.stem.split("_")[1]
+        point = AUSTRALIA_FILE_AOI[path.name]
         if not daily.get("time") or daily["time"][0] != "1991-01-01" or daily["time"][-1] != "2026-09-10":
             raise ValueError(f"Australia raw date coverage changed: {path.name}")
         records[point] = {}
@@ -990,7 +1041,7 @@ def build_australia_raw_weather() -> dict:
     }
     aggregated = {metric_id: {} for metric_id in RAW_LABELS}
     all_dates = sorted({day for point in point_exposures.values() for values in point.values() for day in values})
-    weights = {point: 1.0 / len(point_exposures) for point in point_exposures}
+    weights = _australia_point_weights(point_exposures)
     for day in all_dates:
         for metric_id in RAW_LABELS:
             point_values = {point: point_exposures[point][metric_id].get(day) for point in point_exposures}
@@ -1018,7 +1069,7 @@ def build_australia_raw_weather() -> dict:
             "source_file_max_date": source_max.isoformat(), "source_gap_count": prior_status.count("source_gap") + current_status.count("source_gap"),
             "display_cutoff_date": "2026-09-10",
             "status_counts": {"last_year": _status_counts(prior_status), "current_year": _status_counts(current_status)},
-            "valid_current_point_count": len(valid_cutoff), "current_spatial_coverage": cutoff_coverage, "spatial_coverage_gate": 0.60,
+            "valid_current_point_count": len(valid_cutoff), "target_point_count": len(point_exposures), "current_spatial_coverage": cutoff_coverage, "spatial_coverage_gate": 0.60,
         })
         metrics[metric_id] = metric
     return {
@@ -1027,6 +1078,7 @@ def build_australia_raw_weather() -> dict:
         "display_window_start": AUSTRALIA_WINDOW[0], "display_window_end": AUSTRALIA_WINDOW[1], "display_window_label": AUSTRALIA_WINDOW[2],
         "display_window_status": AUSTRALIA_WINDOW[3], "cross_year_axis": True, "source_file_max_date": source_max.isoformat(),
         "display_cutoff_date": "2026-09-10", "metrics": metrics, "solar_model_status": "included_and_active_in_current_stage",
+        "point_count": len(point_exposures), "point_weight_method": "V0.3 official state production allocations; AOIs weighted by valid_weight_kt; weights renormalized over valid AOIs",
     }
 
 
@@ -1242,12 +1294,71 @@ def build_central_asia_seasonal() -> dict:
     return result
 
 
+def _national_details(geography: str, raw: dict) -> list[dict]:
+    """Small, explicit state/AOI detail rows; null scores stay null."""
+    display = {
+        "MT": "马托格罗索（MT，二季棉为主）", "BA": "巴伊亚（BA，首季/混合作制）",
+        "MA": "马拉尼昂（MA，Cerrado）", "PI": "皮奥伊（PI，Cerrado）", "GO": "戈亚斯（GO，Cerrado）",
+        "MS": "南马托格罗索（MS，首季）", "MG": "米纳斯吉拉斯（MG，Cerrado）", "SP": "圣保罗（SP，南部/首季）",
+        "PR": "巴拉那（PR，南部/首季）", "PA": "帕拉（PA，北部）", "TO": "托坎廷斯（TO，Cerrado）",
+    }
+    if geography == "China":
+        return [{"name": "新疆（唯一代理，非中国全国）", "score": raw.get("theoretical_weather_stress_index"),
+                 "valid_point_count": 18, "target_point_count": 18,
+                 "production_weight_share": None, "status": "proxy_only"}]
+    if geography == "Brazil":
+        states = {state: dict(value) for state, value in (raw.get("state_details") or {}).items()}
+        shares = raw.get("official_state_production_weights") or {}
+        target_ids = raw.get("target_point_ids") or []
+        for state in ("MT", "BA", "MA", "PI", "GO", "MS", "MG", "SP", "PR", "PA", "TO"):
+            ids = [point for point in target_ids if point.startswith(state.lower() + "_")]
+            value = states.get(state, {})
+            states[state] = {**value, "target_point_count": len(ids), "point_ids": ids}
+        return [{"name": display.get(state, state), "score": value.get("score"),
+                 "valid_point_count": value.get("valid_point_count", 0), "target_point_count": value.get("target_point_count", 0),
+                 "production_weight_share": shares.get(state),
+                 "status": "available" if value.get("score") is not None else "inactive_or_gap"}
+                for state, value in states.items()]
+    if geography == "United States":
+        states = raw.get("state_scores") or {}
+        weights = raw.get("state_production_weights_1000_480lb_bales") or {}
+        denominator = raw.get("usda_nass_network_production_1000_480lb_bales")
+        point_ids = [point for points in (raw.get("point_ids_by_regime") or {}).values() for point in points]
+        abbreviations = sorted(set(point.split("_", 1)[0].upper() for point in point_ids))
+        return [{"name": state, "score": states.get(state), "valid_point_count": sum(1 for point in point_ids if point.startswith(state.lower() + "_")),
+                 "target_point_count": sum(1 for point in point_ids if point.startswith(state.lower() + "_")),
+                 "production_1000_480lb_bales": weights.get(state),
+                 "production_weight_share": (weights.get(state) / denominator if weights.get(state) is not None and denominator else None),
+                 "status": "available" if states.get(state) is not None else "gap"}
+                for state in abbreviations]
+    if geography == "India":
+        components = {key[:2].upper(): raw.get(f"{key}_component_score") for key in ("pb", "hr", "rj", "gj", "mh", "mp", "tg", "ap", "ka", "tn")}
+        weights = raw.get("state_production_weights_million_170kg_bales") or {}
+        denominator = raw.get("active_target_production_weight_million_bales")
+        return [{"name": state, "score": components.get(state), "valid_point_count": None, "target_point_count": None,
+                 "production_weight_million_bales": weights.get(state),
+                 "production_weight_share": (weights.get(state) / denominator if weights.get(state) is not None and denominator else None),
+                 "status": "available" if components.get(state) is not None else "gap"}
+                for state in sorted(set(components) | set(weights))]
+    if geography == "Australia":
+        rows = []
+        denominator = raw.get("target_state_production_weight_kt")
+        for item in raw.get("aoi_components") or []:
+            rows.append({"name": item.get("aoi_name"), "score": item.get("score"), "valid_point_count": int(item.get("point_status") == "valid_era5_response"),
+                         "target_point_count": 1,
+                         "production_weight_share": (item.get("valid_weight_kt") / denominator if item.get("valid_weight_kt") is not None and denominator else None),
+                         "status": item.get("point_status")})
+        return rows
+    return []
+
+
 def build_region(geography: str, supply_row: dict | None = None) -> dict:
     raw = read_json(REGION_PATHS[geography])
     meta = REGION_META[geography]
+    national = read_json(NATIONAL_LATEST_PATHS[geography]) if geography in NATIONAL_LATEST_PATHS else raw
     factors = []
     for factor_id, label, field in meta["factor_fields"]:
-        value = factor_value(raw, field)
+        value = factor_value(national, field)
         factors.append(
             {
                 "id": factor_id,
@@ -1257,33 +1368,45 @@ def build_region(geography: str, supply_row: dict | None = None) -> dict:
             }
         )
 
+    details = _national_details(geography, national)
     return {
         "id": meta["id"],
         "name": meta["name"],
         "short_name": meta["short_name"],
         "geography": geography,
-        "date": raw.get("date"),
-        "source_file_max_date": raw.get("source_file_max_date"),
-        "score": raw.get("theoretical_weather_stress_index"),
-        "band": raw.get("stress_band"),
-        "band_display": BAND_DISPLAY.get(raw.get("stress_band"), "暂无"),
-        "change_7d": raw.get("change_7d"),
-        "change_yoy": raw.get("change_yoy"),
-        "score_7d_ago": raw.get("score_7d_ago"),
-        "score_year_ago": raw.get("score_year_ago"),
-        "confidence": raw.get("confidence"),
-        "confidence_display": CONFIDENCE_DISPLAY.get(raw.get("confidence"), "暂无"),
-        "point_coverage": raw.get("point_coverage"),
-        "factor_weight_coverage": raw.get("factor_weight_coverage"),
-        "stage_proxy": raw.get("stage_proxy"),
-        "stage_binding": raw.get("stage_binding"),
+        "date": national.get("date"),
+        "source_file_max_date": national.get("source_file_max_date", national.get("date")),
+        "score": national.get("theoretical_weather_stress_index"),
+        "band": national.get("stress_band"),
+        "band_display": BAND_DISPLAY.get(national.get("stress_band"), "暂无"),
+        "change_7d": national.get("change_7d"),
+        "change_yoy": national.get("change_yoy", national.get("change_year")),
+        "score_7d_ago": national.get("score_7d_ago"),
+        "score_year_ago": national.get("score_year_ago"),
+        "confidence": national.get("confidence"),
+        "confidence_display": CONFIDENCE_DISPLAY.get(national.get("confidence"), "暂无"),
+        "point_coverage": national.get("point_coverage"),
+        "target_point_count": national.get("target_point_count", national.get("active_point_count", national.get("point_registry_expected_count", 18 if geography == "China" else None))),
+        "valid_point_count": national.get("valid_point_count", 18 if geography == "China" else None),
+        "production_weight_coverage": (None if geography == "China" else national.get("production_weight_coverage", national.get("production_weight_coverage_of_india", national.get("production_weight_coverage_us_total")))),
+        "official_production_weight_coverage": (None if geography == "China" else national.get("official_production_weight_coverage", national.get("production_weight_coverage_of_india", national.get("production_weight_coverage_us_total")))),
+        "factor_weight_coverage": national.get("factor_weight_coverage", national.get("point_factor_weight_coverage")),
+        "stage_proxy": national.get("stage_proxy"),
+        "stage_binding": national.get("stage_binding"),
         "stage_display": meta["stage_display"],
-        "source_mode": source_mode(raw),
-        "theoretical_not_calibrated": raw.get("theoretical_not_calibrated"),
+        "source_mode": source_mode(national),
+        "model_version": national.get("model_version", "v0_1"),
+        "source_path": str((NATIONAL_LATEST_PATHS.get(geography, REGION_PATHS[geography])).relative_to(COTTON_ROOT)),
+        "coverage_name": "美国全国既有天气网络" if geography == "United States" else "巴西全国既有天气网络" if geography == "Brazil" else "印度全国既有天气网络" if geography == "India" else meta["name"],
+        "theoretical_not_calibrated": national.get("theoretical_not_calibrated"),
+        "network_details": details,
+        "production_weight_coverage_label": "中国全国生产权重覆盖不适用：仅以新疆代理" if geography == "China" else "官方/可确认全国生产权重覆盖",
+        "raw_network_name": {"China": "新疆代理18点", "United States": "旧得州12点代表网络", "Brazil": "旧马托格罗索12点代表网络", "India": "旧中部雨养带16点代表网络"}.get(geography, meta["name"]),
+        "raw_network_note": "当前原始天气仍来自区域代表点位网络，不能代表全国；仅综合分及模型单因子使用全国既有网络。" if geography in ("United States", "Brazil", "India") else "原始天气为新疆18点代理，不代表中国全国。" if geography == "China" else "原始天气为当前网络点位聚合。",
         "factors": factors,
         "drivers": raw.get("primary_stress_drivers") or [],
         "inactive": raw.get("countervailing_or_inactive_factors") or [],
-        "gap_codes": [part for part in (raw.get("gap_codes") or "").split(";") if part],
+        "gap_codes": (national.get("gap_codes") if isinstance(national.get("gap_codes"), list) else [part for part in (national.get("gap_codes") or "").split(";") if part]),
         "supply_risk_reading": (supply_row or {}).get("local_weather_supply_risk_reading"),
         "production_change_pct": (supply_row or {}).get("production_change_pct"),
         "ending_stocks_change_pct": (supply_row or {}).get("ending_stocks_change_pct"),
@@ -1327,14 +1450,24 @@ def build_australia_region(supply_row: dict) -> dict:
                         "status": "available" if value is not None else "not_available_or_inactive"})
     gap_codes = [part for part in (raw.get("gap_codes") or []) if part]
     return {
-        "id": meta["id"], "name": meta["name"], "short_name": meta["short_name"],
+        "id": meta["id"], "name": "澳大利亚全国既有天气网络", "short_name": "澳大利亚全国网络",
         "geography": "Australia", "date": raw.get("date"), "source_file_max_date": raw.get("source_file_max_date"),
         "score": raw.get("theoretical_weather_stress_index"), "band": raw.get("stress_band"),
         "band_display": BAND_DISPLAY.get(raw.get("stress_band"), "暂无"), "change_7d": raw.get("change_7d"),
         "change_yoy": raw.get("change_yoy"), "score_7d_ago": raw.get("score_7d_ago"),
         "score_year_ago": raw.get("score_year_ago"), "confidence": raw.get("confidence"),
         "confidence_display": CONFIDENCE_DISPLAY.get(raw.get("confidence"), "暂无"),
-        "point_coverage": raw.get("point_coverage"), "factor_weight_coverage": raw.get("factor_weight_coverage"),
+        "point_coverage": raw.get("point_coverage"), "target_point_count": raw.get("configured_aoi_count", len(raw.get("point_ids") or [])),
+        "valid_point_count": raw.get("valid_aoi_count", len([x for x in raw.get("aoi_components", []) if x.get("point_status") == "valid_era5_response"])),
+        "production_weight_coverage": raw.get("production_weight_coverage_national"),
+        "official_production_weight_coverage": raw.get("production_weight_coverage_national"),
+        "production_weight_coverage_label": "澳大利亚官方全国产量权重覆盖",
+        "network_details": _national_details("Australia", raw), "factor_weight_coverage": raw.get("factor_weight_coverage"),
+        "model_version": raw.get("model_version", "v0_3"),
+        "source_path": str(AUSTRALIA_LATEST_PATH.relative_to(COTTON_ROOT)),
+        "coverage_name": "澳大利亚全国既有天气网络",
+        "raw_network_name": "澳洲8 AOI 原始天气网络",
+        "raw_network_note": "原始天气、综合分和模型单因子均使用含 St George 的 V0.3 八 AOI 网络；按 AOI 生产分配权重聚合，仍有全国未覆盖产量缺口。",
         "stage_proxy": raw.get("stage_proxy"), "stage_binding": raw.get("stage_binding"),
         "stage_display": meta["stage_display"], "source_mode": source_mode(raw),
         "theoretical_not_calibrated": raw.get("theoretical_not_calibrated"), "factors": factors,
@@ -1382,7 +1515,7 @@ def _production_weights(brief: dict) -> tuple[list[dict], dict[str, float]]:
         rows.append({
             "region_id": PRODUCTION_WEIGHTED_REGION_IDS[geo],
             "geography": geo,
-            "name": GEO_DISPLAY[geo],
+            "name": "中国（新疆代理）" if geo == "China" else GEO_DISPLAY[geo],
             "production_1000_480lb_bales": int(productions[geo]),
             "production_weight": weights[geo],
             "production_weight_pct": weights[geo] * 100.0,
@@ -1430,7 +1563,7 @@ def _production_year_trace(year: int, daily: dict[str, dict[date, float | None]]
 
 def build_production_weighted_weather(brief: dict) -> dict:
     weight_rows, weights = _production_weights(brief)
-    daily = {PRODUCTION_WEIGHTED_REGION_IDS[geo]: _score_daily_by_date(AUSTRALIA_DAILY_PATH if geo == "Australia" else DAILY_PATHS[geo]) for geo in PRODUCTION_WEIGHTED_REGIONS}
+    daily = {PRODUCTION_WEIGHTED_REGION_IDS[geo]: _score_daily_by_date(NATIONAL_DAILY_PATHS[geo] if geo in NATIONAL_DAILY_PATHS else DAILY_PATHS[geo]) for geo in PRODUCTION_WEIGHTED_REGIONS}
     history_years = list(range(2015, 2025))
     history, history_coverage, history_ids, history_status = {}, {}, {}, {}
     for year in history_years:
@@ -1481,6 +1614,10 @@ def build_production_weighted_weather(brief: dict) -> dict:
         "current_region_scores": current_scores, "current_score": current_result["value"],
         "weighted_production_coverage": current_result["production_weight_coverage"], "valid_region_ids": current_result["valid_region_ids"],
         "current_status": current_result["status"], "seasonal_metric": metric,
+        "weather_input_paths": {
+            geo: str((NATIONAL_DAILY_PATHS[geo] if geo in NATIONAL_DAILY_PATHS else DAILY_PATHS[geo]).relative_to(COTTON_ROOT))
+            for geo in PRODUCTION_WEIGHTED_REGIONS
+        },
     }
 
 
