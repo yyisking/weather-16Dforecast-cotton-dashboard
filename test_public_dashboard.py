@@ -79,7 +79,7 @@ FROZEN_INPUT_SHAS = {
 }
 FROZEN_RAW_POINT_SEMANTIC_SHAS = {
     "China": "ecca890e61fc60e9542aa642f67e5fc5d99e440a74c835de14826f4ccf9ff814",
-    "United States": "7a4220af4a75b8b4f2b3b8bf6d6b25f9b47a30352db889e48891d7211c8cb894",
+    "United States": "efa3f8830286e7b07767c811b500405f1295b9456922205e36407e3ac7775968",
     "Brazil": "afca7f119c6b1f8902ef64976d7523f7fb27d38e87b844f76ea7e8140120a739",
     "India": "24f8e724ab67d0d9c23cad6ac864e7d9abb346d02ec9482b4b4439b29a654437",
 }
@@ -285,10 +285,13 @@ class PublicDashboardTest(unittest.TestCase):
             self.assertTrue(region["theoretical_not_calibrated"])
 
         china = regions["China"]
-        self.assertEqual(china["name"], "中国（新疆代理）")
-        self.assertIn("非中国全国", china["network_details"][0]["name"])
+        self.assertEqual(china["name"], "中国·新疆")
+        self.assertEqual([row["id"] for row in china["network_details"]], [
+            "north_shihezi_changji", "north_kuitun", "north_bozhou", "kashgar", "aksu", "bayingol", "turpan",
+        ])
+        self.assertEqual(sum(row["target_point_count"] for row in china["network_details"]), 18)
         self.assertIsNone(china["official_production_weight_coverage"])
-        self.assertIsNone(china["network_details"][0]["production_weight_share"])
+        self.assertTrue(all(row["production_weight_share"] is None for row in china["network_details"]))
 
         australia = regions["Australia"]
         self.assertEqual(australia["raw_network_name"], "澳洲8 AOI 原始天气网络")
@@ -307,6 +310,50 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertEqual(composite["common_cutoff_date"], "2026-09-10")
         self.assertTrue(composite["not_calibrated"])
         self.assertTrue(composite["not_unified_model"])
+
+    def test_v15_subregion_drilldown_uses_local_raw_values_and_honest_factor_snapshot_gates(self):
+        regions = {region["id"]: region for region in self.payload["regions"]}
+        self.assertEqual({key: len(regions[key]["network_details"]) for key in regions}, {
+            "china": 7, "us": 16, "brazil": 11, "india": 10, "australia": 8,
+        })
+        for region in regions.values():
+            for row in region["network_details"]:
+                self.assertIn("id", row)
+                self.assertIn("raw_weather", row)
+                self.assertIn("factor_scores", row)
+                self.assertIn("factor_detail_status", row)
+                self.assertIn("factor_detail_note", row)
+                raw = row["raw_weather"]
+                self.assertEqual(set(raw["values"]) & {
+                    "tmax_14d_mean", "tmin_14d_mean", "precip_14d_sum", "sw_rad_14d_mean",
+                }, {"tmax_14d_mean", "tmin_14d_mean", "precip_14d_sum", "sw_rad_14d_mean"})
+                self.assertGreaterEqual(raw["coverage"], 0.0)
+                self.assertLessEqual(raw["coverage"], 1.0)
+
+        mismatch_ids = {
+            (region["id"], row["id"])
+            for region in regions.values()
+            for row in region["network_details"]
+            if row.get("factor_detail_status") == "source_revision_mismatch"
+        }
+        self.assertEqual(mismatch_ids, {("us", "OK"), ("us", "TX"), ("brazil", "MT"), ("india", "GJ")})
+        texas = next(item for item in regions["us"]["network_details"] if item["id"] == "TX")
+        self.assertEqual(texas["name"], "德州（TX）")
+        self.assertNotIn("得州", json.dumps(self.payload, ensure_ascii=False))
+        self.assertNotIn("得州", (ROOT / "index.html").read_text(encoding="utf-8"))
+        for region_id, row_id in mismatch_ids:
+            row = next(item for item in regions[region_id]["network_details"] if item["id"] == row_id)
+            self.assertTrue(row["factor_scores"])
+            self.assertTrue(all(value is None for value in row["factor_scores"].values()))
+            self.assertIn("不一致", row["factor_detail_note"])
+
+        north = regions["china"]["network_details"][:3]
+        self.assertEqual([row["name"] for row in north], ["北疆·石河子—昌吉代理区", "北疆·奎屯代理区", "北疆·博州代理区"])
+        self.assertEqual(north[0]["point_names"], ["石河子", "沙湾", "昌吉", "呼图壁"])
+        self.assertEqual(north[1]["point_names"], ["奎屯"])
+        self.assertEqual(north[2]["point_names"], ["博乐", "精河"])
+        self.assertEqual(sum(row["raw_weather"]["target_point_count"] for row in north), 7)
+        self.assertTrue(all("high_heat" in row["factor_scores"] for row in north))
 
     def test_xinjiang_v02_three_phase_temperature_scores_are_independently_rebuilt(self):
         points = tuple(builder.RAW_POINT_CONFIG["China"]["points"])
@@ -1108,7 +1155,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("历史带不含补造的澳洲历史分", self.payload["five_region_production_weighted_weather_stress_display"]["seasonal_metric"]["historical_band_note"])
         self.assertIn("覆盖不足不按0处理", html)
         self.assertIn("M.nonnegative?Math.max(0,lo-extra):lo-extra", html)
-        self.assertIn("v=20260930-v14-region-browser", html)
+        self.assertIn("v=20261002-v15-subregion-drilldown", html)
         self.assertNotIn("v=20260923-v05-raw-weather", html)
         self.assertIn("data-chart-region=\"${weightedId}\"", html)
         self.assertIn("const first=app.querySelector('.hero')", html)
@@ -1167,8 +1214,8 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("<title>棉花供需与天气胁迫看板 V0.7</title>", html)
         self.assertIn("<h1>棉花供需与天气胁迫看板 V0.7</h1>", html)
         self.assertIn('"dashboard_id": "cotton_public_supply_weather_dashboard_v0_7"', json.dumps(self.payload, ensure_ascii=False))
-        self.assertIn("${r.name} · 天气因子原始数据", html)
-        self.assertIn("${r.name} · 模型天气胁迫单因子评分", html)
+        self.assertIn("${r.name} · 国家／新疆整体天气因子原始数据", html)
+        self.assertIn("${r.name} · 国家／新疆整体模型单因子评分", html)
         self.assertNotIn("当前原始天气（14日）", html)
         self.assertNotIn("模型天气胁迫因子", html)
         self.assertIn("温度/短波辐射为截至当日过去14天日值平均；降水为截至当日过去14天累计。", html)
@@ -1187,7 +1234,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("panel.classList.add('cotton-score-hero')", html)
         self.assertIn("天气胁迫 · 五区产量加权展示分", html)
         self.assertIn("（产区产量加权 · 未校准）", html)
-        self.assertIn("连续位置尺，不代表损失或校准等级", html)
+        self.assertIn("分数越高，表示当地天气理论胁迫越强；不是减产百分比，也未做产量校准", html)
         self.assertIn("查看总分季节图", html)
         self.assertIn("<span>覆盖产区</span>", html)
         self.assertIn("<span>加权口径</span><b>USDA 当前产量</b>", html)
@@ -1260,7 +1307,7 @@ class PublicDashboardTest(unittest.TestCase):
 
     def test_page_and_publish_files_are_synced_and_safe(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
-        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "分区域查看", "查看区域详情", "当前区域详情", "所选国家／代理区内部网络", "地区分项", "展开完整州／邦／AOI 表格", "全球棉花五大种植区域天气胁迫总评分（产区产量加权）", "产量加权详情", "共同截止", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "分项因子", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.7", "USDA供需截止", "天气因子原始数据", "模型天气胁迫单因子评分", "Tmax日最高温度（14天移动平均）", "Tmin日最低温度（14天移动平均）", "TP累计降水量（14天累计滚动值）", "SWd日短波辐射（14日移动平均）", "MJ/m²/日", "天气原值与理论分数均未换算为 USDA 产量", "太阳辐射模型状态："):
+        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "分区域查看", "查看区域详情", "当前国家／地区", "国家内部产区", "选择地区查看具体因子", "当前所选地区", "展开完整州／邦／AOI 表格", "全球棉花五大种植区域天气胁迫总评分（产区产量加权）", "产量加权详情", "共同截止", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.7", "USDA供需截止", "天气因子原始数据", "模型天气胁迫单因子评分", "Tmax日最高温度（14天移动平均）", "Tmin日最低温度（14天移动平均）", "TP累计降水量（14天累计滚动值）", "SWd日短波辐射（14日移动平均）", "MJ/m²/日", "天气原值与理论分数均未换算为 USDA 产量", "太阳辐射模型状态："):
             self.assertIn(phrase, html)
         self.assertIn("<title>棉花供需与天气胁迫看板 V0.7</title>", html)
         self.assertNotIn("看板 V0.5", html)
@@ -1295,7 +1342,7 @@ class PublicDashboardTest(unittest.TestCase):
     def test_published_data_fetch_is_versioned_for_cache_busting(self):
         for page in (ROOT / "index.html", ROOT / "dist/index.html"):
             html = page.read_text(encoding="utf-8")
-            self.assertIn("fetch('./data.json?v=20260930-v14-region-browser')", html)
+            self.assertIn("fetch('./data.json?v=20261002-v15-subregion-drilldown')", html)
             self.assertNotIn("fetch('./data.json')", html)
 
     def test_temp_builder_is_deterministic(self):

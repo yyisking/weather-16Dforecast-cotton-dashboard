@@ -140,7 +140,7 @@
   "regions": [
     {
       "id": "china",
-      "name": "中国（新疆代理）",
+      "name": "中国·新疆",
       "short_name": "新疆",
       "geography": "China",
       "date": "2026-09-29",
@@ -166,16 +166,292 @@
       "source_mode": "混合来源；逐行来源暂不可分",
       "model_version": "v0_2",
       "source_path": "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_2_latest.json",
-      "coverage_name": "中国（新疆代理）",
+      "coverage_name": "中国·新疆",
       "theoretical_not_calibrated": true,
       "network_details": [
         {
-          "name": "新疆（唯一代理，非中国全国）",
-          "score": 20.73412698412698,
-          "valid_point_count": 18,
-          "target_point_count": 18,
+          "id": "north_shihezi_changji",
+          "name": "北疆·石河子—昌吉代理区",
+          "score": 10.416666666666666,
+          "valid_point_count": 4,
+          "target_point_count": 4,
           "production_weight_share": null,
-          "status": "proxy_only"
+          "status": "available",
+          "factor_scores": {
+            "low_temperature": 0.0,
+            "high_heat": 83.33333333333333,
+            "excess_rain": 0.0,
+            "spring_wind": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 27.064,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 15.034,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 4.0,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 17.334,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 4,
+            "target_point_count": 4,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening",
+          "point_names": [
+            "石河子",
+            "沙湾",
+            "昌吉",
+            "呼图壁"
+          ],
+          "coverage_semantics": "新疆田间代理点等权；不是州市行政区或产量面积完整覆盖",
+          "factor_detail_status": "available_same_model_recompute",
+          "factor_detail_note": "按新疆 V0.2 同一权重与同期历史分布复算；仍为未校准理论胁迫分。"
+        },
+        {
+          "id": "north_kuitun",
+          "name": "北疆·奎屯代理区",
+          "score": 11.309523809523808,
+          "valid_point_count": 1,
+          "target_point_count": 1,
+          "production_weight_share": null,
+          "status": "available",
+          "factor_scores": {
+            "low_temperature": 0.0,
+            "high_heat": 90.47619047619047,
+            "excess_rain": 0.0,
+            "spring_wind": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 26.757,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 15.593,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 1.3,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 17.264,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening",
+          "point_names": [
+            "奎屯"
+          ],
+          "coverage_semantics": "新疆田间代理点等权；不是州市行政区或产量面积完整覆盖",
+          "factor_detail_status": "available_same_model_recompute",
+          "factor_detail_note": "按新疆 V0.2 同一权重与同期历史分布复算；仍为未校准理论胁迫分。"
+        },
+        {
+          "id": "north_bozhou",
+          "name": "北疆·博州代理区",
+          "score": 12.5,
+          "valid_point_count": 2,
+          "target_point_count": 2,
+          "production_weight_share": null,
+          "status": "available",
+          "factor_scores": {
+            "low_temperature": 0.0,
+            "high_heat": 100.0,
+            "excess_rain": 0.0,
+            "spring_wind": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 26.036,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 14.918,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 3.5,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 17.556,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening",
+          "point_names": [
+            "博乐",
+            "精河"
+          ],
+          "coverage_semantics": "新疆田间代理点等权；不是州市行政区或产量面积完整覆盖",
+          "factor_detail_status": "available_same_model_recompute",
+          "factor_detail_note": "按新疆 V0.2 同一权重与同期历史分布复算；仍为未校准理论胁迫分。"
+        },
+        {
+          "id": "kashgar",
+          "name": "喀什棉区",
+          "score": 29.931972789115644,
+          "valid_point_count": 3,
+          "target_point_count": 3,
+          "production_weight_share": null,
+          "status": "available",
+          "factor_scores": {
+            "low_temperature": 1.587301587301589,
+            "high_heat": 9.523809523809527,
+            "excess_rain": 65.07936507936508,
+            "spring_wind": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 26.707,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 15.021,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 10.6,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 17.326,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 3,
+            "target_point_count": 3,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_picking",
+          "point_names": [
+            "喀什",
+            "莎车",
+            "巴楚"
+          ],
+          "coverage_semantics": "新疆田间代理点等权；不是州市行政区或产量面积完整覆盖",
+          "factor_detail_status": "available_same_model_recompute",
+          "factor_detail_note": "按新疆 V0.2 同一权重与同期历史分布复算；仍为未校准理论胁迫分。"
+        },
+        {
+          "id": "aksu",
+          "name": "阿克苏棉区",
+          "score": 20.748299319727888,
+          "valid_point_count": 4,
+          "target_point_count": 4,
+          "production_weight_share": null,
+          "status": "available",
+          "factor_scores": {
+            "low_temperature": 0.0,
+            "high_heat": 38.095238095238095,
+            "excess_rain": 35.71428571428571,
+            "spring_wind": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 26.264,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 13.784,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 3.45,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 17.32,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 4,
+            "target_point_count": 4,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_picking",
+          "point_names": [
+            "阿克苏",
+            "阿瓦提",
+            "库车",
+            "沙雅"
+          ],
+          "coverage_semantics": "新疆田间代理点等权；不是州市行政区或产量面积完整覆盖",
+          "factor_detail_status": "available_same_model_recompute",
+          "factor_detail_note": "按新疆 V0.2 同一权重与同期历史分布复算；仍为未校准理论胁迫分。"
+        },
+        {
+          "id": "bayingol",
+          "name": "巴音郭楞棉区",
+          "score": 29.931972789115644,
+          "valid_point_count": 3,
+          "target_point_count": 3,
+          "production_weight_share": null,
+          "status": "available",
+          "factor_scores": {
+            "low_temperature": 0.0,
+            "high_heat": 42.85714285714286,
+            "excess_rain": 55.55555555555555,
+            "spring_wind": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 27.648,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 15.143,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 2.933,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 17.931,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 3,
+            "target_point_count": 3,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_picking",
+          "point_names": [
+            "库尔勒",
+            "尉犁",
+            "轮台"
+          ],
+          "coverage_semantics": "新疆田间代理点等权；不是州市行政区或产量面积完整覆盖",
+          "factor_detail_status": "available_same_model_recompute",
+          "factor_detail_note": "按新疆 V0.2 同一权重与同期历史分布复算；仍为未校准理论胁迫分。"
+        },
+        {
+          "id": "turpan",
+          "name": "吐鲁番棉区",
+          "score": 32.65306122448979,
+          "valid_point_count": 1,
+          "target_point_count": 1,
+          "production_weight_share": null,
+          "status": "available",
+          "factor_scores": {
+            "low_temperature": 0.0,
+            "high_heat": 71.42857142857142,
+            "excess_rain": 52.38095238095237,
+            "spring_wind": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 29.05,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 16.814,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 1.6,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 17.479,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_picking_proxy",
+          "point_names": [
+            "吐鲁番"
+          ],
+          "coverage_semantics": "新疆田间代理点等权；不是州市行政区或产量面积完整覆盖",
+          "factor_detail_status": "available_same_model_recompute",
+          "factor_detail_note": "按新疆 V0.2 同一权重与同期历史分布复算；仍为未校准理论胁迫分。"
         }
       ],
       "production_weight_coverage_label": "中国全国生产权重覆盖不适用：仅以新疆代理",
@@ -244,8 +520,8 @@
     },
     {
       "id": "us",
-      "name": "美国全国既有天气网络",
-      "short_name": "美国全国网络",
+      "name": "美国",
+      "short_name": "美国",
       "geography": "United States",
       "date": "2026-09-30",
       "source_file_max_date": "2026-09-30",
@@ -270,156 +546,686 @@
       "source_mode": "仅实况",
       "model_version": "us_national_theoretical_weather_stress_index_v0_1",
       "source_path": "us_weather/derived/us_national_theoretical_weather_stress_index_v0_1_latest.json",
-      "coverage_name": "美国全国既有天气网络",
+      "coverage_name": "美国",
       "theoretical_not_calibrated": true,
       "network_details": [
         {
-          "name": "AL",
+          "name": "阿拉巴马州（AL）",
           "score": 0.0,
           "valid_point_count": 2,
           "target_point_count": 2,
           "production_1000_480lb_bales": 673.0,
           "production_weight_share": 0.047082692038617605,
-          "status": "available"
+          "status": "available",
+          "id": "AL",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "high_heat": null,
+            "low_temperature": null,
+            "establishment_excess_rain": null,
+            "harvest_rain": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 30.346,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 18.725,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 17.9,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 19.34,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_harvest",
+          "point_names": [
+            "al_n",
+            "al_s"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "AR",
+          "name": "阿肯色州（AR）",
           "score": 0.0,
           "valid_point_count": 2,
           "target_point_count": 2,
           "production_1000_480lb_bales": 1788.0,
           "production_weight_share": 0.12508744927941795,
-          "status": "available"
+          "status": "available",
+          "id": "AR",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "high_heat": null,
+            "low_temperature": 0.0,
+            "establishment_excess_rain": null,
+            "harvest_rain": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 31.861,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 19.957,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 3.05,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 18.539,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_harvest",
+          "point_names": [
+            "ar_ne",
+            "ar_se"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "AZ",
+          "name": "亚利桑那州（AZ）",
           "score": 83.33,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_1000_480lb_bales": 287.0,
           "production_weight_share": 0.020078354554358472,
-          "status": "available"
+          "status": "available",
+          "id": "AZ",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "high_heat": null,
+            "low_temperature": 33.333333333333336,
+            "establishment_excess_rain": null,
+            "harvest_rain": 100.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 34.75,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 22.207,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 57.5,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 18.187,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "harvest",
+          "point_names": [
+            "az_c"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "CA",
+          "name": "加利福尼亚州（CA）",
           "score": 0.0,
           "valid_point_count": 2,
           "target_point_count": 2,
           "production_1000_480lb_bales": 441.0,
           "production_weight_share": 0.030852105778648383,
-          "status": "available"
+          "status": "available",
+          "id": "CA",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "high_heat": null,
+            "low_temperature": 0.0,
+            "establishment_excess_rain": null,
+            "harvest_rain": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 32.764,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 17.879,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 0.0,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 20.604,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "harvest",
+          "point_names": [
+            "ca_fresno",
+            "ca_kern"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "GA",
+          "name": "佐治亚州（GA）",
           "score": 16.67,
           "valid_point_count": 2,
           "target_point_count": 2,
           "production_1000_480lb_bales": 1930.0,
           "production_weight_share": 0.13502168742129564,
-          "status": "available"
+          "status": "available",
+          "id": "GA",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "high_heat": null,
+            "low_temperature": null,
+            "establishment_excess_rain": null,
+            "harvest_rain": 16.666666666666664
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 30.221,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 18.625,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 27.4,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 19.989,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_harvest",
+          "point_names": [
+            "ga_c",
+            "ga_sw"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "KS",
+          "name": "堪萨斯州（KS）",
           "score": 60.0,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_1000_480lb_bales": 201.0,
           "production_weight_share": 0.014061844130404365,
-          "status": "available"
+          "status": "available",
+          "id": "KS",
+          "factor_scores": {
+            "root_zone_dryness": 0.0,
+            "high_heat": null,
+            "low_temperature": 0.0,
+            "establishment_excess_rain": null,
+            "harvest_rain": 100.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 27.557,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 17.243,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 87.4,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 14.423,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_harvest",
+          "point_names": [
+            "ks_sw"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "LA",
+          "name": "路易斯安那州（LA）",
           "score": 0.0,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_1000_480lb_bales": 330.0,
           "production_weight_share": 0.023086609766335524,
-          "status": "available"
+          "status": "available",
+          "id": "LA",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "high_heat": null,
+            "low_temperature": 0.0,
+            "establishment_excess_rain": null,
+            "harvest_rain": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 33.507,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 20.493,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 5.7,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 20.624,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_harvest",
+          "point_names": [
+            "la_ne"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "MO",
+          "name": "密苏里州（MO）",
           "score": 0.0,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_1000_480lb_bales": 1045.0,
           "production_weight_share": 0.07310759759339583,
-          "status": "available"
+          "status": "available",
+          "id": "MO",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "high_heat": null,
+            "low_temperature": 0.0,
+            "establishment_excess_rain": null,
+            "harvest_rain": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 29.593,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 18.421,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 0.9,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 17.326,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_harvest",
+          "point_names": [
+            "mo_boot"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "MS",
+          "name": "密西西比州（MS）",
           "score": 0.0,
           "valid_point_count": 2,
           "target_point_count": 2,
           "production_1000_480lb_bales": 1241.0,
           "production_weight_share": 0.08681964460612844,
-          "status": "available"
+          "status": "available",
+          "id": "MS",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "high_heat": null,
+            "low_temperature": 0.0,
+            "establishment_excess_rain": null,
+            "harvest_rain": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 32.279,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 20.939,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 5.65,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 19.604,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_harvest",
+          "point_names": [
+            "ms_delta_n",
+            "ms_delta_s"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "NC",
+          "name": "北卡罗来纳州（NC）",
           "score": 40.48,
           "valid_point_count": 2,
           "target_point_count": 2,
           "production_1000_480lb_bales": 785.0,
           "production_weight_share": 0.05491814747446481,
-          "status": "available"
+          "status": "available",
+          "id": "NC",
+          "factor_scores": {
+            "root_zone_dryness": 80.95238095238095,
+            "high_heat": null,
+            "low_temperature": null,
+            "establishment_excess_rain": null,
+            "harvest_rain": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 28.111,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 17.375,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 25.35,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 18.172,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_fill_opening",
+          "point_names": [
+            "nc_e",
+            "nc_s"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "NM",
+          "name": "新墨西哥州（NM）",
           "score": 75.0,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_1000_480lb_bales": 65.0,
           "production_weight_share": 0.004547362529732755,
-          "status": "available"
+          "status": "available",
+          "id": "NM",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "high_heat": null,
+            "low_temperature": 0.0,
+            "establishment_excess_rain": null,
+            "harvest_rain": 100.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 27.543,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 17.357,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 115.7,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 17.829,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "harvest",
+          "point_names": [
+            "nm_s"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "OK",
+          "name": "俄克拉何马州（OK）",
           "score": 53.33,
           "valid_point_count": 2,
           "target_point_count": 2,
           "production_1000_480lb_bales": 270.0,
           "production_weight_share": 0.01888904435427452,
-          "status": "available"
+          "status": "available",
+          "id": "OK",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "high_heat": null,
+            "low_temperature": null,
+            "establishment_excess_rain": null,
+            "harvest_rain": null
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 33.75,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 22.157,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 32.65,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 17.45,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_harvest",
+          "point_names": [
+            "ok_sw",
+            "ok_sw2"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "source_revision_mismatch",
+          "factor_detail_note": "当前点文件已发生源修订，复算地区总分与已发布快照不一致；为避免混合快照，本地区单因子暂不展示。"
         },
         {
-          "name": "SC",
+          "name": "南卡罗来纳州（SC）",
           "score": 14.29,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_1000_480lb_bales": 396.0,
           "production_weight_share": 0.027703931719602632,
-          "status": "available"
+          "status": "available",
+          "id": "SC",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "high_heat": null,
+            "low_temperature": null,
+            "establishment_excess_rain": null,
+            "harvest_rain": 14.28571428571428
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 27.929,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 16.886,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 43.8,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 19.036,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_harvest",
+          "point_names": [
+            "sc_e"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "TN",
+          "name": "田纳西州（TN）",
           "score": 0.95,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_1000_480lb_bales": 548.0,
           "production_weight_share": 0.038337764096823844,
-          "status": "available"
+          "status": "available",
+          "id": "TN",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "high_heat": null,
+            "low_temperature": 4.761904761904767,
+            "establishment_excess_rain": null,
+            "harvest_rain": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 30.429,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 18.521,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 5.8,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 17.179,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_harvest",
+          "point_names": [
+            "tn_w"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "TX",
+          "name": "德州（TX）",
           "score": 42.22,
           "valid_point_count": 12,
           "target_point_count": 12,
           "production_1000_480lb_bales": 4081.0,
           "production_weight_share": 0.28550440744368266,
-          "status": "available"
+          "status": "available",
+          "id": "TX",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "high_heat": null,
+            "low_temperature": null,
+            "establishment_excess_rain": null,
+            "harvest_rain": null
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 32.291,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 21.844,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 43.883,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 19.193,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 12,
+            "target_point_count": 12,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_opening_harvest；late_harvest",
+          "point_names": [
+            "tx_hp_n",
+            "tx_hp_c",
+            "tx_hp_s",
+            "tx_hp_w",
+            "tx_hp_e",
+            "tx_hp_sw",
+            "tx_farwest",
+            "tx_rolling",
+            "tx_edwards",
+            "tx_coastal",
+            "tx_rgv",
+            "tx_black"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "source_revision_mismatch",
+          "factor_detail_note": "当前点文件已发生源修订，复算地区总分与已发布快照不一致；为避免混合快照，本地区单因子暂不展示。"
         },
         {
-          "name": "VA",
+          "name": "弗吉尼亚州（VA）",
           "score": 40.48,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_1000_480lb_bales": 213.0,
           "production_weight_share": 0.014901357212816567,
-          "status": "available"
+          "status": "available",
+          "id": "VA",
+          "factor_scores": {
+            "root_zone_dryness": 80.95238095238095,
+            "high_heat": null,
+            "low_temperature": null,
+            "establishment_excess_rain": null,
+            "harvest_rain": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 26.229,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 18.071,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 40.1,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 14.139,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "boll_fill_opening",
+          "point_names": [
+            "va_se"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         }
       ],
       "production_weight_coverage_label": "官方/可确认全国生产权重覆盖",
-      "raw_network_name": "旧得州12点代表网络",
+      "raw_network_name": "旧德州12点代表网络",
       "raw_network_note": "当前原始天气仍来自区域代表点位网络，不能代表全国；仅综合分及模型单因子使用全国既有网络。",
       "factors": [
         {
@@ -487,8 +1293,8 @@
     },
     {
       "id": "brazil",
-      "name": "巴西全国既有天气网络",
-      "short_name": "巴西全国网络",
+      "name": "巴西",
+      "short_name": "巴西",
       "geography": "Brazil",
       "date": "2026-09-29",
       "source_file_max_date": "2026-09-29",
@@ -513,7 +1319,7 @@
       "source_mode": "仅实况",
       "model_version": "v0_1",
       "source_path": "br_weather/derived/brazil_national_theoretical_weather_stress_index_v0_1_latest.json",
-      "coverage_name": "巴西全国既有天气网络",
+      "coverage_name": "巴西",
       "theoretical_not_calibrated": true,
       "network_details": [
         {
@@ -522,7 +1328,51 @@
           "valid_point_count": 12,
           "target_point_count": 12,
           "production_weight_share": 0.6926025108714345,
-          "status": "available"
+          "status": "available",
+          "id": "MT",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "low_solar_radiation": null,
+            "high_vpd": null,
+            "high_temperature": null,
+            "low_temperature": null,
+            "harvest_rain": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 34.812,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 23.092,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 19.4,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 20.713,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 12,
+            "target_point_count": 12,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "harvest",
+          "point_names": [
+            "mt_sorriso",
+            "mt_lucas",
+            "mt_sinop",
+            "mt_nova_mutum",
+            "mt_nova_ubirata",
+            "mt_campo_verde",
+            "mt_primavera",
+            "mt_sapezal",
+            "mt_campo_novo",
+            "mt_diamantino",
+            "mt_tangara",
+            "mt_rondonopolis"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "source_revision_mismatch",
+          "factor_detail_note": "当前点文件已发生源修订，复算地区总分与已发布快照不一致；为避免混合快照，本地区单因子暂不展示。"
         },
         {
           "name": "巴伊亚（BA，首季/混合作制）",
@@ -530,7 +1380,43 @@
           "valid_point_count": 4,
           "target_point_count": 4,
           "production_weight_share": 0.21182713804879247,
-          "status": "available"
+          "status": "available",
+          "id": "BA",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "low_solar_radiation": null,
+            "high_vpd": null,
+            "high_temperature": null,
+            "low_temperature": null,
+            "harvest_rain": 16.666666666666664
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 35.439,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 21.646,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 2.5,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 24.086,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 4,
+            "target_point_count": 4,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "harvest_tail",
+          "point_names": [
+            "ba_lem",
+            "ba_barreiras",
+            "ba_sao_desiderio",
+            "ba_correntina"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
           "name": "南马托格罗索（MS，首季）",
@@ -538,7 +1424,41 @@
           "valid_point_count": 2,
           "target_point_count": 2,
           "production_weight_share": 0.017050340269758987,
-          "status": "available"
+          "status": "available",
+          "id": "MS",
+          "factor_scores": {
+            "root_zone_dryness": 0.0,
+            "low_solar_radiation": null,
+            "high_vpd": 38.095238095238095,
+            "high_temperature": 61.9047619047619,
+            "low_temperature": null,
+            "harvest_rain": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 32.439,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 20.382,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 21.65,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 21.341,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "planting_start",
+          "point_names": [
+            "ms_chapadao_sul",
+            "ms_costa_rica"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
           "name": "巴拉那（PR，南部/首季）",
@@ -546,7 +1466,41 @@
           "valid_point_count": 2,
           "target_point_count": 2,
           "production_weight_share": 0.0005405007001940889,
-          "status": "available"
+          "status": "available",
+          "id": "PR",
+          "factor_scores": {
+            "root_zone_dryness": 0.0,
+            "low_solar_radiation": null,
+            "high_vpd": null,
+            "high_temperature": null,
+            "low_temperature": 21.42857142857143,
+            "harvest_rain": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 27.339,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 16.568,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 66.55,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 18.862,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "planting_start",
+          "point_names": [
+            "pr_maringa",
+            "pr_cornelio"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
           "name": "圣保罗（SP，南部/首季）",
@@ -554,7 +1508,40 @@
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_weight_share": 0.0031938677738741613,
-          "status": "available"
+          "status": "available",
+          "id": "SP",
+          "factor_scores": {
+            "root_zone_dryness": 0.0,
+            "low_solar_radiation": null,
+            "high_vpd": null,
+            "high_temperature": null,
+            "low_temperature": 14.28571428571429,
+            "harvest_rain": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 29.107,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 18.75,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 53.1,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 19.346,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "planting_start",
+          "point_names": [
+            "sp_prudente"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
           "name": "马拉尼昂（MA，Cerrado）",
@@ -562,7 +1549,41 @@
           "valid_point_count": 0,
           "target_point_count": 2,
           "production_weight_share": 0.014863769255337445,
-          "status": "inactive_or_gap"
+          "status": "inactive_or_gap",
+          "id": "MA",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "low_solar_radiation": null,
+            "high_vpd": null,
+            "high_temperature": null,
+            "low_temperature": null,
+            "harvest_rain": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 36.739,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 23.975,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 13.5,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 24.502,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "当前月份未启用",
+          "point_names": [
+            "ma_balsas",
+            "ma_tasso_fragoso"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
           "name": "皮奥伊（PI，Cerrado）",
@@ -570,7 +1591,40 @@
           "valid_point_count": 0,
           "target_point_count": 1,
           "production_weight_share": 0.02152175515318281,
-          "status": "inactive_or_gap"
+          "status": "inactive_or_gap",
+          "id": "PI",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "low_solar_radiation": null,
+            "high_vpd": null,
+            "high_temperature": null,
+            "low_temperature": null,
+            "harvest_rain": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 36.464,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 24.171,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 2.7,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 25.146,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "当前月份未启用",
+          "point_names": [
+            "pi_urucui"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
           "name": "戈亚斯（GO，Cerrado）",
@@ -578,7 +1632,42 @@
           "valid_point_count": 0,
           "target_point_count": 3,
           "production_weight_share": 0.01388104070953001,
-          "status": "inactive_or_gap"
+          "status": "inactive_or_gap",
+          "id": "GO",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "low_solar_radiation": null,
+            "high_vpd": null,
+            "high_temperature": null,
+            "low_temperature": null,
+            "harvest_rain": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 32.798,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 20.4,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 21.9,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 21.737,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 3,
+            "target_point_count": 3,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "当前月份未启用",
+          "point_names": [
+            "go_chapadao_ceu",
+            "go_jatai",
+            "go_mineiros"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
           "name": "米纳斯吉拉斯（MG，Cerrado）",
@@ -586,7 +1675,40 @@
           "valid_point_count": 0,
           "target_point_count": 1,
           "production_weight_share": 0.02004766233447166,
-          "status": "inactive_or_gap"
+          "status": "inactive_or_gap",
+          "id": "MG",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "low_solar_radiation": null,
+            "high_vpd": null,
+            "high_temperature": null,
+            "low_temperature": null,
+            "harvest_rain": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 33.021,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 21.843,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 2.6,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 23.164,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "当前月份未启用",
+          "point_names": [
+            "mg_paracatu"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
           "name": "帕拉（PA，北部）",
@@ -594,7 +1716,40 @@
           "valid_point_count": 0,
           "target_point_count": 1,
           "production_weight_share": 0.0001228410682259293,
-          "status": "inactive_or_gap"
+          "status": "inactive_or_gap",
+          "id": "PA",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "low_solar_radiation": null,
+            "high_vpd": null,
+            "high_temperature": null,
+            "low_temperature": null,
+            "harvest_rain": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 35.021,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 22.821,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 10.0,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 21.807,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "当前月份未启用",
+          "point_names": [
+            "pa_santana_araguaia"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
           "name": "托坎廷斯（TO，Cerrado）",
@@ -602,7 +1757,40 @@
           "valid_point_count": 0,
           "target_point_count": 1,
           "production_weight_share": 0.004348573815197897,
-          "status": "inactive_or_gap"
+          "status": "inactive_or_gap",
+          "id": "TO",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "low_solar_radiation": null,
+            "high_vpd": null,
+            "high_temperature": null,
+            "low_temperature": null,
+            "harvest_rain": null
+          },
+          "raw_weather": {
+            "date": "2026-09-29",
+            "values": {
+              "tmax_14d_mean": 36.314,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 24.079,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 12.5,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 22.522,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "当前月份未启用",
+          "point_names": [
+            "to_pedro_afonso"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         }
       ],
       "production_weight_coverage_label": "官方/可确认全国生产权重覆盖",
@@ -678,8 +1866,8 @@
     },
     {
       "id": "india",
-      "name": "印度全国既有天气网络",
-      "short_name": "印度全国网络",
+      "name": "印度",
+      "short_name": "印度",
       "geography": "India",
       "date": "2026-09-30",
       "source_file_max_date": "2026-09-30",
@@ -708,98 +1896,414 @@
       "source_mode": "混合来源；逐行来源暂不可分",
       "model_version": "v0_1",
       "source_path": "in_weather/derived/india_national_theoretical_weather_stress_index_v0_1_latest.json",
-      "coverage_name": "印度全国既有天气网络",
+      "coverage_name": "印度",
       "theoretical_not_calibrated": true,
       "network_details": [
         {
-          "name": "AP",
+          "name": "安得拉邦（AP）",
           "score": 63.08390022675737,
           "valid_point_count": null,
           "target_point_count": null,
           "production_weight_million_bales": 1.13,
           "production_weight_share": 0.039455307262569836,
-          "status": "available"
+          "status": "available",
+          "id": "AP",
+          "factor_scores": {
+            "root_zone_dryness": 90.47619047619048,
+            "excess_rain_waterlogging": 0.0,
+            "hot_dry_compound": 85.71428571428572
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 33.261,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 25.436,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 59.35,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 18.716,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "flowering_boll_set",
+          "point_names": [
+            "ap_guntur",
+            "ap_kurnool"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "GJ",
+          "name": "古吉拉特邦（GJ）",
           "score": 41.40476190476191,
           "valid_point_count": null,
           "target_point_count": null,
           "production_weight_million_bales": 7.16,
           "production_weight_share": 0.25000000000000006,
-          "status": "available"
+          "status": "available",
+          "id": "GJ",
+          "factor_scores": {
+            "root_zone_dryness": null,
+            "excess_rain_waterlogging": null,
+            "hot_dry_compound": null
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 32.354,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 24.927,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 33.7,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 20.423,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 5,
+            "target_point_count": 5,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "flowering_boll_set",
+          "point_names": [
+            "gj_rajkot",
+            "gj_surendranagar",
+            "gj_bhavnagar",
+            "gj_amreli",
+            "gj_bharuch"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "source_revision_mismatch",
+          "factor_detail_note": "当前点文件已发生源修订，复算地区总分与已发布快照不一致；为避免混合快照，本地区单因子暂不展示。"
         },
         {
-          "name": "HR",
+          "name": "哈里亚纳邦（HR）",
           "score": 0.0,
           "valid_point_count": null,
           "target_point_count": null,
           "production_weight_million_bales": 1.18,
           "production_weight_share": 0.04120111731843576,
-          "status": "available"
+          "status": "available",
+          "id": "HR",
+          "factor_scores": {
+            "root_zone_dryness": 0.0,
+            "excess_rain_waterlogging": 0.0,
+            "hot_dry_compound": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 33.318,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 24.532,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 10.7,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 19.115,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "flowering_boll_set",
+          "point_names": [
+            "hr_sirsa",
+            "hr_hisar"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "KA",
+          "name": "卡纳塔克邦（KA）",
           "score": 65.91836734693878,
           "valid_point_count": null,
           "target_point_count": null,
           "production_weight_million_bales": 2.27,
           "production_weight_share": 0.07925977653631286,
-          "status": "available"
+          "status": "available",
+          "id": "KA",
+          "factor_scores": {
+            "root_zone_dryness": 90.47619047619048,
+            "excess_rain_waterlogging": 11.904761904761907,
+            "hot_dry_compound": 90.47619047619048
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 31.643,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 23.257,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 52.1,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 20.294,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "flowering_boll_set",
+          "point_names": [
+            "ka_raichur",
+            "ka_haveri"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "MH",
+          "name": "马哈拉施特拉邦（MH）",
           "score": 64.37830687830689,
           "valid_point_count": null,
           "target_point_count": null,
           "production_weight_million_bales": 7.37,
           "production_weight_share": 0.2573324022346369,
-          "status": "available"
+          "status": "available",
+          "id": "MH",
+          "factor_scores": {
+            "root_zone_dryness": 96.82539682539682,
+            "excess_rain_waterlogging": 0.0,
+            "hot_dry_compound": 88.88888888888887
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 31.533,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 23.755,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 24.7,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 21.085,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 6,
+            "target_point_count": 6,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "flowering_boll_set",
+          "point_names": [
+            "mh_akola",
+            "mh_amravati",
+            "mh_yavatmal",
+            "mh_buldhana",
+            "mh_jalgaon",
+            "mh_jalna"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "MP",
+          "name": "中央邦（MP）",
           "score": 8.928571428571429,
           "valid_point_count": null,
           "target_point_count": null,
           "production_weight_million_bales": 1.54,
           "production_weight_share": 0.0537709497206704,
-          "status": "available"
+          "status": "available",
+          "id": "MP",
+          "factor_scores": {
+            "root_zone_dryness": 11.904761904761907,
+            "excess_rain_waterlogging": 0.0,
+            "hot_dry_compound": 11.904761904761907
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 31.0,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 22.918,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 15.8,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 20.958,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "flowering_boll_set",
+          "point_names": [
+            "mp_khargone",
+            "mp_dhar"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "PB",
+          "name": "旁遮普邦（PB）",
           "score": 0.0,
           "valid_point_count": null,
           "target_point_count": null,
           "production_weight_million_bales": 0.41,
           "production_weight_share": 0.01431564245810056,
-          "status": "available"
+          "status": "available",
+          "id": "PB",
+          "factor_scores": {
+            "root_zone_dryness": 0.0,
+            "excess_rain_waterlogging": 0.0,
+            "hot_dry_compound": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 32.871,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 24.636,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 3.1,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 19.04,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "flowering_boll_set",
+          "point_names": [
+            "pb_bathinda"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "RJ",
+          "name": "拉贾斯坦邦（RJ）",
           "score": 20.346320346320347,
           "valid_point_count": null,
           "target_point_count": null,
           "production_weight_million_bales": 1.79,
           "production_weight_share": 0.06250000000000001,
-          "status": "available"
+          "status": "available",
+          "id": "RJ",
+          "factor_scores": {
+            "root_zone_dryness": 40.476190476190474,
+            "excess_rain_waterlogging": 47.61904761904762,
+            "hot_dry_compound": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 33.975,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 24.661,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 13.85,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 19.305,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 2,
+            "target_point_count": 2,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "flowering_boll_set",
+          "point_names": [
+            "rj_ganganagar",
+            "rj_hanumangarh"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "TG",
+          "name": "特伦甘纳邦（TG）",
           "score": 45.07936507936508,
           "valid_point_count": null,
           "target_point_count": null,
           "production_weight_million_bales": 5.79,
           "production_weight_share": 0.20216480446927376,
-          "status": "available"
+          "status": "available",
+          "id": "TG",
+          "factor_scores": {
+            "root_zone_dryness": 66.66666666666667,
+            "excess_rain_waterlogging": 0.0,
+            "hot_dry_compound": 63.492063492063494
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 31.969,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 24.567,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 69.9,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 18.73,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 3,
+            "target_point_count": 3,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "flowering_boll_set",
+          "point_names": [
+            "tg_adilabad",
+            "tg_warangal",
+            "tg_khammam"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         },
         {
-          "name": "TN",
+          "name": "泰米尔纳德邦（TN）",
           "score": 0.0,
           "valid_point_count": null,
           "target_point_count": null,
           "production_weight_million_bales": null,
           "production_weight_share": null,
-          "status": "available"
+          "status": "available",
+          "id": "TN",
+          "factor_scores": {
+            "root_zone_dryness": 0.0,
+            "excess_rain_waterlogging": 0.0,
+            "hot_dry_compound": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-30",
+            "values": {
+              "tmax_14d_mean": 33.043,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 24.436,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 39.1,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 20.717,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "flowering_boll_set",
+          "point_names": [
+            "tn_salem"
+          ],
+          "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
+          "factor_detail_status": "available_same_score_recompute",
+          "factor_detail_note": "地区总分可从当前输入复算一致；单因子为同一地区模型口径的当前诊断。"
         }
       ],
       "production_weight_coverage_label": "官方/可确认全国生产权重覆盖",
@@ -860,8 +2364,8 @@
     },
     {
       "id": "australia",
-      "name": "澳大利亚全国既有天气网络",
-      "short_name": "澳大利亚全国网络",
+      "name": "澳大利亚",
+      "short_name": "澳大利亚",
       "geography": "Australia",
       "date": "2026-09-10",
       "source_file_max_date": "2026-09-10",
@@ -882,74 +2386,338 @@
       "production_weight_coverage_label": "澳大利亚官方全国产量权重覆盖",
       "network_details": [
         {
-          "name": "Gwydir Valley (NSW)",
+          "name": "吉迪尔河谷（新南威尔士州）",
           "score": 6.95,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_weight_share": 0.1344392597200622,
-          "status": "valid_era5_response"
+          "status": "valid_era5_response",
+          "id": "Gwydir Valley (NSW)",
+          "source_name": "Gwydir Valley (NSW)",
+          "factor_scores": {
+            "excess_rain": 0.0,
+            "high_heat": 76.47,
+            "high_vpd": null,
+            "low_solar": 0.0,
+            "low_temperature": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-10",
+            "values": {
+              "tmax_14d_mean": 24.779,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 9.664,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 0.0,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 19.761,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "planting_establishment_broad_proxy",
+          "point_names": [
+            "Gwydir Valley (NSW)"
+          ],
+          "coverage_semantics": "单个城镇格点代理；不是 AOI 面平均",
+          "factor_detail_status": "available_embedded_model_output",
+          "factor_detail_note": "单因子直接来自澳大利亚 V0.3 已发布 AOI 组件；仍为未校准理论胁迫分。"
         },
         {
-          "name": "Namoi Valley (NSW)",
+          "name": "纳莫伊河谷（新南威尔士州）",
           "score": 5.88,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_weight_share": 0.1344392597200622,
-          "status": "valid_era5_response"
+          "status": "valid_era5_response",
+          "id": "Namoi Valley (NSW)",
+          "source_name": "Namoi Valley (NSW)",
+          "factor_scores": {
+            "excess_rain": 0.0,
+            "high_heat": 64.71,
+            "high_vpd": null,
+            "low_solar": 0.0,
+            "low_temperature": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-10",
+            "values": {
+              "tmax_14d_mean": 24.029,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 8.643,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 0.0,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 19.801,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "planting_establishment_broad_proxy",
+          "point_names": [
+            "Namoi Valley (NSW)"
+          ],
+          "coverage_semantics": "单个城镇格点代理；不是 AOI 面平均",
+          "factor_detail_status": "available_embedded_model_output",
+          "factor_detail_note": "单因子直接来自澳大利亚 V0.3 已发布 AOI 组件；仍为未校准理论胁迫分。"
         },
         {
-          "name": "Macquarie Valley (NSW)",
+          "name": "麦夸里河谷（新南威尔士州）",
           "score": 5.35,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_weight_share": 0.1344392597200622,
-          "status": "valid_era5_response"
+          "status": "valid_era5_response",
+          "id": "Macquarie Valley (NSW)",
+          "source_name": "Macquarie Valley (NSW)",
+          "factor_scores": {
+            "excess_rain": 0.0,
+            "high_heat": 58.82,
+            "high_vpd": null,
+            "low_solar": 0.0,
+            "low_temperature": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-10",
+            "values": {
+              "tmax_14d_mean": 20.957,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 6.636,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 0.3,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 18.636,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "planting_establishment_broad_proxy",
+          "point_names": [
+            "Macquarie Valley (NSW)"
+          ],
+          "coverage_semantics": "单个城镇格点代理；不是 AOI 面平均",
+          "factor_detail_status": "available_embedded_model_output",
+          "factor_detail_note": "单因子直接来自澳大利亚 V0.3 已发布 AOI 组件；仍为未校准理论胁迫分。"
         },
         {
-          "name": "Murrumbidgee Valley (NSW)",
+          "name": "马兰比吉河谷（新南威尔士州）",
           "score": 3.74,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_weight_share": 0.1344392597200622,
-          "status": "valid_era5_response"
+          "status": "valid_era5_response",
+          "id": "Murrumbidgee Valley (NSW)",
+          "source_name": "Murrumbidgee Valley (NSW)",
+          "factor_scores": {
+            "excess_rain": 0.0,
+            "high_heat": 41.18,
+            "high_vpd": null,
+            "low_solar": 0.0,
+            "low_temperature": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-10",
+            "values": {
+              "tmax_14d_mean": 19.85,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 6.643,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 1.9,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 16.032,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "planting_establishment_broad_proxy",
+          "point_names": [
+            "Murrumbidgee Valley (NSW)"
+          ],
+          "coverage_semantics": "单个城镇格点代理；不是 AOI 面平均",
+          "factor_detail_status": "available_embedded_model_output",
+          "factor_detail_note": "单因子直接来自澳大利亚 V0.3 已发布 AOI 组件；仍为未校准理论胁迫分。"
         },
         {
-          "name": "Darling Downs (QLD)",
+          "name": "达令草原（昆士兰州）",
           "score": 8.56,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_weight_share": 0.11286380870917573,
-          "status": "valid_era5_response"
+          "status": "valid_era5_response",
+          "id": "Darling Downs (QLD)",
+          "source_name": "Darling Downs (QLD)",
+          "factor_scores": {
+            "excess_rain": 0.0,
+            "high_heat": 94.12,
+            "high_vpd": null,
+            "low_solar": 0.0,
+            "low_temperature": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-10",
+            "values": {
+              "tmax_14d_mean": 26.757,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 10.286,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 0.1,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 19.099,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "planting_establishment_broad_proxy",
+          "point_names": [
+            "Darling Downs (QLD)"
+          ],
+          "coverage_semantics": "单个城镇格点代理；不是 AOI 面平均",
+          "factor_detail_status": "available_embedded_model_output",
+          "factor_detail_note": "单因子直接来自澳大利亚 V0.3 已发布 AOI 组件；仍为未校准理论胁迫分。"
         },
         {
-          "name": "St George (QLD)",
+          "name": "圣乔治（昆士兰州）",
           "score": 6.95,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_weight_share": 0.11286380870917573,
-          "status": "valid_era5_response"
+          "status": "valid_era5_response",
+          "id": "St George (QLD)",
+          "source_name": "St George (QLD)",
+          "factor_scores": {
+            "excess_rain": 0.0,
+            "high_heat": 76.47,
+            "high_vpd": null,
+            "low_solar": 0.0,
+            "low_temperature": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-10",
+            "values": {
+              "tmax_14d_mean": 26.564,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 9.929,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 0.0,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 20.334,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "planting_establishment_broad_proxy",
+          "point_names": [
+            "St George (QLD)"
+          ],
+          "coverage_semantics": "单个城镇格点代理；不是 AOI 面平均",
+          "factor_detail_status": "available_embedded_model_output",
+          "factor_detail_note": "单因子直接来自澳大利亚 V0.3 已发布 AOI 组件；仍为未校准理论胁迫分。"
         },
         {
-          "name": "Border Rivers / Macintyre Valley (QLD-NSW)",
+          "name": "边界河／麦金太尔河谷（昆士兰—新南威尔士）",
           "score": 7.49,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_weight_share": 0.12365153499222395,
-          "status": "valid_era5_response"
+          "status": "valid_era5_response",
+          "id": "Border Rivers / Macintyre Valley (QLD-NSW)",
+          "source_name": "Border Rivers / Macintyre Valley (QLD-NSW)",
+          "factor_scores": {
+            "excess_rain": 0.0,
+            "high_heat": 82.35,
+            "high_vpd": null,
+            "low_solar": 0.0,
+            "low_temperature": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-10",
+            "values": {
+              "tmax_14d_mean": 26.071,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 9.979,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 0.0,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 19.954,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "planting_establishment_broad_proxy",
+          "point_names": [
+            "Border Rivers / Macintyre Valley (QLD-NSW)"
+          ],
+          "coverage_semantics": "单个城镇格点代理；不是 AOI 面平均",
+          "factor_detail_status": "available_embedded_model_output",
+          "factor_detail_note": "单因子直接来自澳大利亚 V0.3 已发布 AOI 组件；仍为未校准理论胁迫分。"
         },
         {
-          "name": "Central Highlands (Emerald/Theodore/Biloela, QLD)",
+          "name": "中央高地（昆士兰州）",
           "score": 7.49,
           "valid_point_count": 1,
           "target_point_count": 1,
           "production_weight_share": 0.11286380870917573,
-          "status": "valid_era5_response"
+          "status": "valid_era5_response",
+          "id": "Central Highlands (Emerald/Theodore/Biloela, QLD)",
+          "source_name": "Central Highlands (Emerald/Theodore/Biloela, QLD)",
+          "factor_scores": {
+            "excess_rain": 0.0,
+            "high_heat": 82.35,
+            "high_vpd": null,
+            "low_solar": 0.0,
+            "low_temperature": 0.0
+          },
+          "raw_weather": {
+            "date": "2026-09-10",
+            "values": {
+              "tmax_14d_mean": 29.914,
+              "tmax_14d_mean_unit": "°C",
+              "tmin_14d_mean": 13.0,
+              "tmin_14d_mean_unit": "°C",
+              "precip_14d_sum": 0.1,
+              "precip_14d_sum_unit": "mm",
+              "sw_rad_14d_mean": 21.029,
+              "sw_rad_14d_mean_unit": "MJ/m²/日"
+            },
+            "valid_point_count": 1,
+            "target_point_count": 1,
+            "coverage": 1.0,
+            "aggregation": "complete trailing-14-day point exposure, then equal point mean within displayed subregion"
+          },
+          "stage_proxy": "planting_establishment_broad_proxy",
+          "point_names": [
+            "Central Highlands (Emerald/Theodore/Biloela, QLD)"
+          ],
+          "coverage_semantics": "单个城镇格点代理；不是 AOI 面平均",
+          "factor_detail_status": "available_embedded_model_output",
+          "factor_detail_note": "单因子直接来自澳大利亚 V0.3 已发布 AOI 组件；仍为未校准理论胁迫分。"
         }
       ],
       "factor_weight_coverage": 1.0,
       "model_version": "v0_3",
       "source_path": "au_weather/derived/australia_national_theoretical_weather_stress_index_v0_3_latest.json",
-      "coverage_name": "澳大利亚全国既有天气网络",
+      "coverage_name": "澳大利亚",
       "raw_network_name": "澳洲8 AOI 原始天气网络",
       "raw_network_note": "原始天气、综合分和模型单因子均使用含 St George 的 V0.3 八 AOI 网络；按 AOI 生产分配权重聚合，仍有全国未覆盖产量缺口。",
       "stage_proxy": "planting_establishment_broad_proxy",
@@ -11768,7 +13536,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-30",
+          "source_file_max_date": "2026-10-02",
           "display_cutoff_date": "2026-09-29",
           "source_gap_count": 0,
           "status_counts": {
@@ -13557,7 +15325,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-30",
+          "source_file_max_date": "2026-10-02",
           "display_cutoff_date": "2026-09-29",
           "source_gap_count": 0,
           "status_counts": {
@@ -15346,7 +17114,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-30",
+          "source_file_max_date": "2026-10-02",
           "display_cutoff_date": "2026-09-29",
           "source_gap_count": 0,
           "status_counts": {
@@ -17135,7 +18903,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-30",
+          "source_file_max_date": "2026-10-02",
           "display_cutoff_date": "2026-09-29",
           "source_gap_count": 0,
           "status_counts": {
@@ -17168,7 +18936,7 @@
         "display_window_label": "新疆 04-01—11-30",
         "display_window_status": "verified_stage_scoring_window",
         "cross_year_axis": false,
-        "source_file_max_date": "2026-09-30",
+        "source_file_max_date": "2026-10-02",
         "display_cutoff_date": "2026-09-29",
         "metrics": {
           "tmax_14d_mean": {
@@ -18939,7 +20707,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-30",
+            "source_file_max_date": "2026-10-02",
             "display_cutoff_date": "2026-09-29",
             "source_gap_count": 0,
             "status_counts": {
@@ -20728,7 +22496,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-30",
+            "source_file_max_date": "2026-10-02",
             "display_cutoff_date": "2026-09-29",
             "source_gap_count": 0,
             "status_counts": {
@@ -22517,7 +24285,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-30",
+            "source_file_max_date": "2026-10-02",
             "display_cutoff_date": "2026-09-29",
             "source_gap_count": 0,
             "status_counts": {
@@ -24306,7 +26074,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-30",
+            "source_file_max_date": "2026-10-02",
             "display_cutoff_date": "2026-09-29",
             "source_gap_count": 0,
             "status_counts": {
@@ -30916,7 +32684,7 @@
           "source_gap_count": 0,
           "display_role": "local_calendar_continuous_temperature_factor_score",
           "secondary_weight": 0.5,
-          "stage_weight_note": "得州V0.2在各子区当地作季内连续监测高温与低温；V0.1原主权重保留，原硬排除方向以0.5暂定次要权重纳入。权重未校准。",
+          "stage_weight_note": "德州V0.2在各子区当地作季内连续监测高温与低温；V0.1原主权重保留，原硬排除方向以0.5暂定次要权重纳入。权重未校准。",
           "theoretical_not_calibrated": true,
           "chart_display_start": "04-01",
           "chart_display_end": "08-31",
@@ -33120,7 +34888,7 @@
           "source_gap_count": 0,
           "display_role": "local_calendar_continuous_temperature_factor_score",
           "secondary_weight": 0.5,
-          "stage_weight_note": "得州V0.2在各子区当地作季内连续监测高温与低温；V0.1原主权重保留，原硬排除方向以0.5暂定次要权重纳入。权重未校准。",
+          "stage_weight_note": "德州V0.2在各子区当地作季内连续监测高温与低温；V0.1原主权重保留，原硬排除方向以0.5暂定次要权重纳入。权重未校准。",
           "theoretical_not_calibrated": true,
           "chart_display_periods": [
             {
@@ -38999,7 +40767,7 @@
             33.00866666666667,
             32.72228571428572,
             32.490857142857145,
-            32.13633333333333,
+            32.14476190476191,
             null,
             null,
             null,
@@ -39705,7 +41473,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-30",
+          "source_file_max_date": "2026-10-02",
           "display_cutoff_date": "2026-09-29",
           "source_gap_count": 0,
           "status_counts": {
@@ -41907,7 +43675,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-30",
+          "source_file_max_date": "2026-10-02",
           "display_cutoff_date": "2026-09-29",
           "source_gap_count": 0,
           "status_counts": {
@@ -43403,7 +45171,7 @@
             34.87866666666667,
             35.400666666666666,
             35.699333333333335,
-            42.87266666666667,
+            41.78066666666667,
             null,
             null,
             null,
@@ -44109,7 +45877,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-30",
+          "source_file_max_date": "2026-10-02",
           "display_cutoff_date": "2026-09-29",
           "source_gap_count": 0,
           "status_counts": {
@@ -45605,7 +47373,7 @@
             19.7901,
             19.715119047619048,
             19.563490476190477,
-            19.16225238095238,
+            19.220666666666666,
             null,
             null,
             null,
@@ -46311,7 +48079,7 @@
               "end": "11-30"
             }
           ],
-          "source_file_max_date": "2026-09-30",
+          "source_file_max_date": "2026-10-02",
           "display_cutoff_date": "2026-09-29",
           "source_gap_count": 0,
           "status_counts": {
@@ -46341,10 +48109,10 @@
         "last_year": 2025,
         "display_window_start": "02-01",
         "display_window_end": "11-30",
-        "display_window_label": "得州原始天气代表网络 02-01—11-30",
+        "display_window_label": "德州原始天气代表网络 02-01—11-30",
         "display_window_status": "legacy_raw_network_display_window",
         "cross_year_axis": false,
-        "source_file_max_date": "2026-09-30",
+        "source_file_max_date": "2026-10-02",
         "display_cutoff_date": "2026-09-29",
         "metrics": {
           "tmax_14d_mean": {
@@ -47822,7 +49590,7 @@
               33.00866666666667,
               32.72228571428572,
               32.490857142857145,
-              32.13633333333333,
+              32.14476190476191,
               null,
               null,
               null,
@@ -48528,7 +50296,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-30",
+            "source_file_max_date": "2026-10-02",
             "display_cutoff_date": "2026-09-29",
             "source_gap_count": 0,
             "status_counts": {
@@ -50730,7 +52498,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-30",
+            "source_file_max_date": "2026-10-02",
             "display_cutoff_date": "2026-09-29",
             "source_gap_count": 0,
             "status_counts": {
@@ -52226,7 +53994,7 @@
               34.87866666666667,
               35.400666666666666,
               35.699333333333335,
-              42.87266666666667,
+              41.78066666666667,
               null,
               null,
               null,
@@ -52932,7 +54700,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-30",
+            "source_file_max_date": "2026-10-02",
             "display_cutoff_date": "2026-09-29",
             "source_gap_count": 0,
             "status_counts": {
@@ -54428,7 +56196,7 @@
               19.7901,
               19.715119047619048,
               19.563490476190477,
-              19.16225238095238,
+              19.220666666666666,
               null,
               null,
               null,
@@ -55134,7 +56902,7 @@
                 "end": "11-30"
               }
             ],
-            "source_file_max_date": "2026-09-30",
+            "source_file_max_date": "2026-10-02",
             "display_cutoff_date": "2026-09-29",
             "source_gap_count": 0,
             "status_counts": {
@@ -75581,7 +77349,7 @@
               "end": "09-30"
             }
           ],
-          "source_file_max_date": "2026-09-29",
+          "source_file_max_date": "2026-10-01",
           "display_cutoff_date": "2026-09-28",
           "source_gap_count": 0,
           "status_counts": {
@@ -77573,7 +79341,7 @@
               "end": "09-30"
             }
           ],
-          "source_file_max_date": "2026-09-29",
+          "source_file_max_date": "2026-10-01",
           "display_cutoff_date": "2026-09-28",
           "source_gap_count": 0,
           "status_counts": {
@@ -79565,7 +81333,7 @@
               "end": "09-30"
             }
           ],
-          "source_file_max_date": "2026-09-29",
+          "source_file_max_date": "2026-10-01",
           "display_cutoff_date": "2026-09-28",
           "source_gap_count": 0,
           "status_counts": {
@@ -81557,7 +83325,7 @@
               "end": "09-30"
             }
           ],
-          "source_file_max_date": "2026-09-29",
+          "source_file_max_date": "2026-10-01",
           "display_cutoff_date": "2026-09-28",
           "source_gap_count": 0,
           "status_counts": {
@@ -81590,7 +83358,7 @@
         "display_window_label": "马托格罗索原始天气代表网络 01-01—09-30",
         "display_window_status": "legacy_raw_network_display_window",
         "cross_year_axis": false,
-        "source_file_max_date": "2026-09-29",
+        "source_file_max_date": "2026-10-01",
         "display_cutoff_date": "2026-09-28",
         "metrics": {
           "tmax_14d_mean": {
@@ -83564,7 +85332,7 @@
                 "end": "09-30"
               }
             ],
-            "source_file_max_date": "2026-09-29",
+            "source_file_max_date": "2026-10-01",
             "display_cutoff_date": "2026-09-28",
             "source_gap_count": 0,
             "status_counts": {
@@ -85556,7 +87324,7 @@
                 "end": "09-30"
               }
             ],
-            "source_file_max_date": "2026-09-29",
+            "source_file_max_date": "2026-10-01",
             "display_cutoff_date": "2026-09-28",
             "source_gap_count": 0,
             "status_counts": {
@@ -87548,7 +89316,7 @@
                 "end": "09-30"
               }
             ],
-            "source_file_max_date": "2026-09-29",
+            "source_file_max_date": "2026-10-01",
             "display_cutoff_date": "2026-09-28",
             "source_gap_count": 0,
             "status_counts": {
@@ -89540,7 +91308,7 @@
                 "end": "09-30"
               }
             ],
-            "source_file_max_date": "2026-09-29",
+            "source_file_max_date": "2026-10-01",
             "display_cutoff_date": "2026-09-28",
             "source_gap_count": 0,
             "status_counts": {
@@ -101691,7 +103459,7 @@
               "end": "12-31"
             }
           ],
-          "source_file_max_date": "2026-09-30",
+          "source_file_max_date": "2026-10-02",
           "display_cutoff_date": "2026-09-29",
           "source_gap_count": 0,
           "status_counts": {
@@ -103270,7 +105038,7 @@
               "end": "12-31"
             }
           ],
-          "source_file_max_date": "2026-09-30",
+          "source_file_max_date": "2026-10-02",
           "display_cutoff_date": "2026-09-29",
           "source_gap_count": 0,
           "status_counts": {
@@ -104849,7 +106617,7 @@
               "end": "12-31"
             }
           ],
-          "source_file_max_date": "2026-09-30",
+          "source_file_max_date": "2026-10-02",
           "display_cutoff_date": "2026-09-29",
           "source_gap_count": 0,
           "status_counts": {
@@ -106428,7 +108196,7 @@
               "end": "12-31"
             }
           ],
-          "source_file_max_date": "2026-09-30",
+          "source_file_max_date": "2026-10-02",
           "display_cutoff_date": "2026-09-29",
           "source_gap_count": 0,
           "status_counts": {
@@ -106461,7 +108229,7 @@
         "display_window_label": "印度中部原始天气代表网络 06-01—12-31",
         "display_window_status": "legacy_raw_network_display_window",
         "cross_year_axis": false,
-        "source_file_max_date": "2026-09-30",
+        "source_file_max_date": "2026-10-02",
         "display_cutoff_date": "2026-09-29",
         "metrics": {
           "tmax_14d_mean": {
@@ -108022,7 +109790,7 @@
                 "end": "12-31"
               }
             ],
-            "source_file_max_date": "2026-09-30",
+            "source_file_max_date": "2026-10-02",
             "display_cutoff_date": "2026-09-29",
             "source_gap_count": 0,
             "status_counts": {
@@ -109601,7 +111369,7 @@
                 "end": "12-31"
               }
             ],
-            "source_file_max_date": "2026-09-30",
+            "source_file_max_date": "2026-10-02",
             "display_cutoff_date": "2026-09-29",
             "source_gap_count": 0,
             "status_counts": {
@@ -111180,7 +112948,7 @@
                 "end": "12-31"
               }
             ],
-            "source_file_max_date": "2026-09-30",
+            "source_file_max_date": "2026-10-02",
             "display_cutoff_date": "2026-09-29",
             "source_gap_count": 0,
             "status_counts": {
@@ -112759,7 +114527,7 @@
                 "end": "12-31"
               }
             ],
-            "source_file_max_date": "2026-09-30",
+            "source_file_max_date": "2026-10-02",
             "display_cutoff_date": "2026-09-29",
             "source_gap_count": 0,
             "status_counts": {
@@ -144415,7 +146183,7 @@
       {
         "region_id": "china",
         "geography": "China",
-        "name": "中国（新疆代理）",
+        "name": "中国·新疆",
         "production_1000_480lb_bales": 33500,
         "production_weight": 0.36333662324703636,
         "production_weight_pct": 36.33366232470364
