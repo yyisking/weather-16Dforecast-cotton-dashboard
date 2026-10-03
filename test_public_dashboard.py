@@ -1158,11 +1158,12 @@ class PublicDashboardTest(unittest.TestCase):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         self.assertIn("five_region_production_weighted_weather_stress_display", html)
         self.assertIn("全球棉花五大种植区域天气胁迫总评分（产区产量加权）", html)
-        self.assertIn("中国天气输入仅为新疆代理，并非中国全国网络", html)
+        self.assertIn("中国棉花种植区以新疆为代表，未包含中国疆外种棉区", html)
+        self.assertNotIn("中国天气输入仅为新疆代理，并非中国全国网络", html)
         self.assertIn("历史带不含补造的澳洲历史分", self.payload["five_region_production_weighted_weather_stress_display"]["seasonal_metric"]["historical_band_note"])
         self.assertIn("覆盖不足不按0处理", html)
         self.assertIn("M.nonnegative?Math.max(0,lo-extra):lo-extra", html)
-        self.assertIn("v=20261003-v16-subregion-seasonal", html)
+        self.assertIn("v=20261003-v17-stage-only-axes", html)
         self.assertNotIn("v=20260923-v05-raw-weather", html)
         self.assertIn("data-chart-region=\"${weightedId}\"", html)
         self.assertIn("const first=app.querySelector('.hero')", html)
@@ -1172,7 +1173,7 @@ class PublicDashboardTest(unittest.TestCase):
         metric = self.payload["seasonal"]["china"]["metrics"]["spring_wind"]
         self.assertEqual(metric["chart_display_start"], "04-01")
         self.assertEqual(metric["chart_display_end"], "05-31")
-        self.assertIn("6—11月不展示", metric["chart_display_note"])
+        self.assertIn("结构性未启用日期从横轴隐藏", metric["chart_display_note"])
         self.assertEqual(metric["day_keys"][0], "04-01")
         self.assertEqual(metric["day_keys"][-1], "11-30")
         self.assertEqual(len(metric["day_keys"]), len(metric["current_year_status"]))
@@ -1208,6 +1209,68 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("高水汽压亏缺（VPD，空气干燥度）", html)
         self.assertIn("M.historical_band_note", html)
         self.assertIn("confidence_display||a.confidence", html)
+
+    def test_every_score_chart_hides_structurally_inactive_days_but_keeps_real_gaps(self):
+        def display_indexes(metric):
+            keys = metric["day_keys"]
+            periods = metric.get("chart_display_periods")
+            if periods is None and metric.get("chart_display_start"):
+                periods = [{"start": metric["chart_display_start"], "end": metric["chart_display_end"]}]
+            if not periods:
+                return list(range(len(keys)))
+            indexes = []
+            for period in periods:
+                start, end = keys.index(period["start"]), keys.index(period["end"])
+                indexes.extend(range(start, end + 1) if end >= start else list(range(start, len(keys))) + list(range(0, end + 1)))
+            return indexes
+
+        score_metrics = []
+        for bundle in self.payload["seasonal"].values():
+            score_metrics.extend(bundle.get("metrics", {}).values())
+        for subregions in self.payload["subregion_seasonal"].values():
+            for bundle in subregions.values():
+                score_metrics.extend(bundle.get("metrics", {}).values())
+        self.assertGreater(len(score_metrics), 100)
+        for metric in score_metrics:
+            self.assertEqual(metric["scale_type"], "fixed_score_0_100")
+            indexes = display_indexes(metric)
+            self.assertTrue(indexes)
+            self.assertFalse(
+                any(metric["current_year_status"][index] == "inactive_stage" for index in indexes),
+                (metric["label"], metric.get("chart_display_periods"), metric.get("active_periods")),
+            )
+            # Future and genuine source-gap statuses are intentionally not used
+            # to crop the axis; only structural inactive-stage days are hidden.
+            active_keys = {
+                key
+                for period in metric.get("active_periods", [])
+                for key in window_keys(period["start"], period["end"])
+            }
+            meaningful_blank_statuses = {
+                status
+                for key, status in zip(metric["day_keys"], metric["current_year_status"])
+                if key in active_keys and status in {"future", "source_gap"}
+            }
+            if meaningful_blank_statuses:
+                retained = {metric["current_year_status"][index] for index in indexes}
+                self.assertTrue(retained & meaningful_blank_statuses)
+
+        al = self.payload["subregion_seasonal"]["us"]["AL"]["metrics"]
+        self.assertEqual(
+            (al["root_zone_dryness"]["chart_display_start"], al["root_zone_dryness"]["chart_display_end"]),
+            ("05-01", "08-31"),
+        )
+        self.assertEqual(
+            (al["harvest_rain"]["chart_display_start"], al["harvest_rain"]["chart_display_end"]),
+            ("09-01", "11-30"),
+        )
+        # Raw-weather charts keep their full crop-season axis: missing raw data
+        # must remain visible as a gap rather than being silently cropped.
+        for subregions in self.payload["subregion_seasonal"].values():
+            for bundle in subregions.values():
+                for metric in bundle.get("raw_metrics", {}).values():
+                    self.assertNotIn("chart_display_start", metric)
+                    self.assertNotIn("chart_display_periods", metric)
 
     def test_v07_label_score_titles_raw_explanation_and_collapsed_weights(self):
         title = "全球棉花五大种植区域天气胁迫总评分（产区产量加权）"
@@ -1431,7 +1494,7 @@ class PublicDashboardTest(unittest.TestCase):
     def test_published_data_fetch_is_versioned_for_cache_busting(self):
         for page in (ROOT / "index.html", ROOT / "dist/index.html"):
             html = page.read_text(encoding="utf-8")
-            self.assertIn("fetch('./data.json?v=20261003-v16-subregion-seasonal')", html)
+            self.assertIn("fetch('./data.json?v=20261003-v17-stage-only-axes')", html)
             self.assertNotIn("fetch('./data.json')", html)
 
     def test_temp_builder_is_deterministic(self):

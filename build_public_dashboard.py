@@ -411,24 +411,64 @@ def _compress_periods(keys: list[str], active_keys: set[str]) -> list[dict[str, 
     return periods
 
 
+def _period_keys(keys: list[str], start: str, end: str) -> list[str]:
+    """Return one period in the order of the chart axis, including cross-year axes."""
+    if start not in keys or end not in keys:
+        return []
+    start_index, end_index = keys.index(start), keys.index(end)
+    return keys[start_index:end_index + 1] if end_index >= start_index else keys[start_index:] + keys[:end_index + 1]
+
+
+def _chart_period_intersection(keys: list[str], configured: tuple | list | None, active_periods: list[dict]) -> list[dict[str, str]]:
+    """Intersect broad display windows with the metric's actual stage-enabled days.
+
+    Configured windows preserve crop-season display order. Only structurally
+    inactive days are removed; source gaps and future days inside an enabled
+    period remain on the axis and keep their status.
+    """
+    active_keys = {
+        key
+        for period in active_periods
+        for key in _period_keys(keys, period["start"], period["end"])
+    }
+    candidates = configured or tuple((period["start"], period["end"]) for period in active_periods)
+    result: list[dict[str, str]] = []
+    for start, end in candidates:
+        sequence = _period_keys(keys, start, end)
+        run: list[str] = []
+        for key in sequence + [None]:
+            if key is not None and key in active_keys:
+                run.append(key)
+            elif run:
+                result.append({"start": run[0], "end": run[-1]})
+                run = []
+    return result
+
+
 def _apply_chart_display_window(metric_payload: dict, geography: str, metric_id: str) -> None:
-    periods = CHART_DISPLAY_WINDOWS.get((geography, metric_id))
-    if not periods:
+    keys = metric_payload.get("day_keys") or []
+    active_periods = metric_payload.get("active_periods") or []
+    configured = CHART_DISPLAY_WINDOWS.get((geography, metric_id))
+    periods = _chart_period_intersection(keys, configured, active_periods)
+    if not periods or (not configured and periods == [{"start": keys[0], "end": keys[-1]}]):
         return
+    metric_payload.pop("chart_display_start", None)
+    metric_payload.pop("chart_display_end", None)
+    metric_payload.pop("chart_display_periods", None)
     if len(periods) == 1:
-        start, end = periods[0]
+        start, end = periods[0]["start"], periods[0]["end"]
         metric_payload.update({
             "chart_display_start": start,
             "chart_display_end": end,
-            "chart_display_note": f"图轴仅显示当地该因子启用期 {start}—{end}；启用期外不展示。",
+            "chart_display_note": f"图轴仅显示当地实际启用期 {start}—{end}；结构性未启用日期从横轴隐藏，真实源数据缺口仍保留。",
         })
     else:
-        period_text = "、".join(f"{start}—{end}" for start, end in periods)
-        note = f"图轴仅拼接显示当地因子或综合分启用期：{period_text}；其余日期从图轴隐藏，横轴不连续。"
+        period_text = "、".join(f"{period['start']}—{period['end']}" for period in periods)
+        note = f"图轴仅拼接显示当地实际启用期：{period_text}；结构性未启用日期从横轴隐藏，真实源数据缺口仍保留，横轴不连续。"
         if geography == "Australia" and metric_id == "excess_rain":
-            note = "图轴拼接显示当地因子启用期 09-01—10-31 与 03-01—04-30；11月至次年2月未启用并从图轴隐藏，横轴不连续。"
+            note = "图轴拼接显示当地实际启用期 09-01—10-31 与 03-01—04-30；11月至次年2月结构性未启用并从横轴隐藏，真实源数据缺口仍保留。"
         metric_payload.update({
-            "chart_display_periods": [{"start": start, "end": end} for start, end in periods],
+            "chart_display_periods": periods,
             "chart_display_note": note,
         })
 
