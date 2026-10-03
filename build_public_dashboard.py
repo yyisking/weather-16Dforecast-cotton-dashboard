@@ -21,8 +21,8 @@ COTTON_ROOT = SITE_ROOT.parent
 DIST = SITE_ROOT / "dist"
 
 BRIEF_PATH = COTTON_ROOT / "research/derived/cotton_current_supply_decision_brief_v0_2.json"
-AUSTRALIA_LATEST_PATH = COTTON_ROOT / "au_weather/derived/australia_national_theoretical_weather_stress_index_v0_3_latest.json"
-AUSTRALIA_DAILY_PATH = COTTON_ROOT / "au_weather/derived/australia_national_theoretical_weather_stress_index_v0_3_daily.csv"
+AUSTRALIA_LATEST_PATH = COTTON_ROOT / "au_weather/derived/australia_national_theoretical_weather_stress_index_v0_4_latest.json"
+AUSTRALIA_DAILY_PATH = COTTON_ROOT / "au_weather/derived/australia_national_theoretical_weather_stress_index_v0_4_daily.csv"
 NATIONAL_LATEST_PATHS = {
     "United States": COTTON_ROOT / "us_weather/derived/us_national_theoretical_weather_stress_index_v0_1_latest.json",
     "Brazil": COTTON_ROOT / "br_weather/derived/brazil_national_theoretical_weather_stress_index_v0_1_latest.json",
@@ -35,8 +35,9 @@ NATIONAL_DAILY_PATHS = {
     "India": COTTON_ROOT / "in_weather/derived/india_national_theoretical_weather_stress_index_v0_1_daily.csv",
     "Australia": AUSTRALIA_DAILY_PATH,
 }
-CENTRAL_ASIA_WATCH_PATH = COTTON_ROOT / "research/derived/central_asia_cotton_current_weather_watch_v0_2.json"
+CENTRAL_ASIA_WATCH_PATH = COTTON_ROOT / "research/derived/central_asia_cotton_current_weather_watch_v0_3.json"
 CENTRAL_ASIA_SEASONAL_PATH = COTTON_ROOT / "research/derived/australia_central_asia_cotton_era5_daily_seasonality_v0_2.csv"
+CURRENT_AU_CENTRAL_OVERLAY_PATH = COTTON_ROOT / "automation/current/australia_central_asia_daily.csv"
 XINJIANG_AREA_WEIGHT_PATH = COTTON_ROOT / "research/audits/xinjiang_dashboard_area_weight_proxy_v0_1.json"
 REGION_PATHS = {
     "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_refresh_2026_09_29_latest.json",
@@ -260,7 +261,7 @@ PIPELINE_PATHS = {
     "United States": COTTON_ROOT / "us_weather/pipelines/build_us_national_theoretical_weather_stress_index_v0_1.py",
     "Brazil": COTTON_ROOT / "br_weather/pipelines/build_brazil_national_theoretical_weather_stress_index_v0_1.py",
     "India": COTTON_ROOT / "in_weather/pipelines/build_india_national_theoretical_weather_stress_index_v0_1.py",
-    "Australia": COTTON_ROOT / "au_weather/pipelines/build_australia_national_theoretical_weather_stress_index_v0_3.py",
+    "Australia": COTTON_ROOT / "au_weather/pipelines/build_australia_national_theoretical_weather_stress_index_v0_4.py",
 }
 
 POINT_META_PATHS = {
@@ -343,6 +344,26 @@ CENTRAL_ASIA_MEAN_VARIABLES = frozenset((
 def read_json(path: Path) -> dict:
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+@lru_cache(maxsize=1)
+def _load_current_au_central_overlay() -> dict[str, dict[date, dict[str, float | None]]]:
+    """Read the mutable current overlay without altering frozen ERA5 history."""
+    if not CURRENT_AU_CENTRAL_OVERLAY_PATH.exists():
+        return {}
+    result: dict[str, dict[date, dict[str, float | None]]] = defaultdict(dict)
+    with CURRENT_AU_CENTRAL_OVERLAY_PATH.open("r", encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            parsed = date.fromisoformat(row["date"][:10])
+            result[row["aoi_name"]][parsed] = {
+                field: _number(row.get(field))
+                for field in (
+                    "temperature_2m_max", "temperature_2m_min", "precipitation_sum",
+                    "shortwave_radiation_sum", "et0_fao_evapotranspiration",
+                    "vapor_pressure_deficit_max",
+                )
+            }
+    return dict(result)
 
 
 def factor_value(raw: dict, field: str):
@@ -1000,6 +1021,7 @@ def _raw_trace(values_by_date: dict[date, float | None], season_year: int, keys:
 def _raw_region_old(geography: str) -> dict:
     config = RAW_POINT_CONFIG[geography]
     records, source_max = _load_old_point_records(config)
+    cutoff = source_max
     point_exposures = {
         point: {
             metric_id: _rolling_point_values(records[point], source_metric, mode)
@@ -1017,13 +1039,13 @@ def _raw_region_old(geography: str) -> dict:
     keys = _window_keys(window_start, window_end)
     metrics = {}
     for metric_id, (label, unit, _source_metric, _mode) in RAW_LABELS.items():
-        current, current_status = _raw_trace(aggregated[metric_id], 2026, keys, False, config["cutoff"])
+        current, current_status = _raw_trace(aggregated[metric_id], 2026, keys, False, cutoff)
         prior, prior_status = _raw_trace(aggregated[metric_id], 2025, keys, False, None)
         history = {year: _raw_trace(aggregated[metric_id], year, keys, False, None)[0] for year in config["history_years"]}
         hist_min = [min((history[year][index] for year in config["history_years"] if history[year][index] is not None), default=None) for index in range(len(keys))]
         hist_max = [max((history[year][index] for year in config["history_years"] if history[year][index] is not None), default=None) for index in range(len(keys))]
         metric = _raw_meta_v05(label, unit, metric_id, config["solar_status"])
-        cutoff_point_values = {point: point_exposures[point][metric_id].get(config["cutoff"]) for point in config["points"]}
+        cutoff_point_values = {point: point_exposures[point][metric_id].get(cutoff) for point in config["points"]}
         _cutoff_value, cutoff_coverage = _spatial_raw(config, cutoff_point_values, metric_id)
         cutoff_valid_count = sum(value is not None for value in cutoff_point_values.values())
         metric.update({
@@ -1034,7 +1056,7 @@ def _raw_region_old(geography: str) -> dict:
             "last_year_status": prior_status, "current_year_status": current_status,
             "active_periods": [{"start": keys[0], "end": keys[-1]}],
             "source_file_max_date": source_max.isoformat(),
-            "display_cutoff_date": config["cutoff"].isoformat(),
+            "display_cutoff_date": cutoff.isoformat(),
             "source_gap_count": prior_status.count("source_gap") + current_status.count("source_gap"),
             "status_counts": {"last_year": _status_counts(prior_status), "current_year": _status_counts(current_status)},
             "valid_current_point_count": cutoff_valid_count,
@@ -1046,7 +1068,7 @@ def _raw_region_old(geography: str) -> dict:
         "status": "available", "source": str(config["path"].relative_to(COTTON_ROOT)), "axis": "month_day",
         "current_year": 2026, "last_year": 2025, "display_window_start": window_start, "display_window_end": window_end,
         "display_window_label": window_label, "display_window_status": window_status, "cross_year_axis": False,
-        "source_file_max_date": source_max.isoformat(), "display_cutoff_date": config["cutoff"].isoformat(),
+        "source_file_max_date": source_max.isoformat(), "display_cutoff_date": cutoff.isoformat(),
         "metrics": metrics, "solar_model_status": config["solar_status"],
     }
 
@@ -1137,6 +1159,19 @@ def _load_australia_records() -> tuple[dict[str, dict[date, dict[str, float | No
         for index, raw_date in enumerate(daily["time"]):
             parsed = date.fromisoformat(raw_date)
             records[point][parsed] = {field: _number(daily[source][index]) for field, source in au_sources.items()}
+    overlay = _load_current_au_central_overlay()
+    overlay_sources = {
+        "tmax": "temperature_2m_max", "tmin": "temperature_2m_min",
+        "precip": "precipitation_sum", "sw_rad": "shortwave_radiation_sum",
+        "vpd_max": "vapor_pressure_deficit_max",
+    }
+    for point, rows in overlay.items():
+        if point not in records:
+            continue
+        for parsed, values in rows.items():
+            if parsed <= date(2026, 9, 10):
+                continue
+            records[point][parsed] = {field: _number(values.get(source)) for field, source in overlay_sources.items()}
     source_max = max(max(values) for values in records.values())
     return records, source_max
 
@@ -1159,13 +1194,13 @@ def build_australia_raw_weather() -> dict:
     keys = _window_keys(AUSTRALIA_WINDOW[0], AUSTRALIA_WINDOW[1])
     metrics = {}
     for metric_id, (label, unit, _source_metric, _mode) in RAW_LABELS.items():
-        current, current_status = _raw_trace(aggregated[metric_id], 2026, keys, True, date(2026, 9, 10))
+        current, current_status = _raw_trace(aggregated[metric_id], 2026, keys, True, source_max)
         prior, prior_status = _raw_trace(aggregated[metric_id], 2025, keys, True, None)
         history = {year: _raw_trace(aggregated[metric_id], year, keys, True, None)[0] for year in range(1991, 2025)}
         hist_min = [min((history[year][index] for year in history if history[year][index] is not None), default=None) for index in range(len(keys))]
         hist_max = [max((history[year][index] for year in history if history[year][index] is not None), default=None) for index in range(len(keys))]
         metric = _raw_meta_v05(label, unit, metric_id, "included_and_active_in_current_stage")
-        cutoff_point_values = {point: point_exposures[point][metric_id].get(date(2026, 9, 10)) for point in point_exposures}
+        cutoff_point_values = {point: point_exposures[point][metric_id].get(source_max) for point in point_exposures}
         valid_cutoff = [value for value in cutoff_point_values.values() if value is not None]
         cutoff_coverage = len(valid_cutoff) / len(point_exposures) if point_exposures else 0.0
         metric.update({
@@ -1175,7 +1210,7 @@ def build_australia_raw_weather() -> dict:
             "status": "available", "last_year_status": prior_status, "current_year_status": current_status,
             "active_periods": [{"start": keys[0], "end": keys[-1]}],
             "source_file_max_date": source_max.isoformat(), "source_gap_count": prior_status.count("source_gap") + current_status.count("source_gap"),
-            "display_cutoff_date": "2026-09-10",
+            "display_cutoff_date": source_max.isoformat(),
             "status_counts": {"last_year": _status_counts(prior_status), "current_year": _status_counts(current_status)},
             "valid_current_point_count": len(valid_cutoff), "target_point_count": len(point_exposures), "current_spatial_coverage": cutoff_coverage, "spatial_coverage_gate": 0.60,
         })
@@ -1185,7 +1220,7 @@ def build_australia_raw_weather() -> dict:
         "axis": "cross_year_month_day", "current_year": "2026/27", "last_year": "2025/26",
         "display_window_start": AUSTRALIA_WINDOW[0], "display_window_end": AUSTRALIA_WINDOW[1], "display_window_label": AUSTRALIA_WINDOW[2],
         "display_window_status": AUSTRALIA_WINDOW[3], "cross_year_axis": True, "source_file_max_date": source_max.isoformat(),
-        "display_cutoff_date": "2026-09-10", "metrics": metrics, "solar_model_status": "included_and_active_in_current_stage",
+        "display_cutoff_date": source_max.isoformat(), "metrics": metrics, "solar_model_status": "included_and_active_in_current_stage",
         "point_count": len(point_exposures), "point_weight_method": "V0.3 official state production allocations; AOIs weighted by valid_weight_kt; weights renormalized over valid AOIs",
     }
 
@@ -1264,16 +1299,16 @@ def _central_midrank(value: float | None, history: list[float]) -> float | None:
 
 
 def _central_anomaly_score(values: dict[str, float | None], history: dict[str, list[float]]) -> float | None:
-    """Use the accepted three-decimal percentile inputs and half-up two-decimal score."""
+    """Use displayed two-decimal percentiles and half-up two-decimal score."""
     percentiles = [_central_midrank(values.get(variable), history[variable]) for variable in CENTRAL_ASIA_VARIABLES]
     if any(value is None for value in percentiles):
         return None
-    rounded_percentiles = [Decimal(f"{value:.3f}") for value in percentiles if value is not None]
+    rounded_percentiles = [Decimal(f"{value:.2f}") for value in percentiles if value is not None]
     score = sum((Decimal("2") * abs(value - Decimal("50")) for value in rounded_percentiles), Decimal("0"))
     return float((score / Decimal(len(CENTRAL_ASIA_VARIABLES))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
-def _central_anomaly_metric(payload: dict, keys: list[str]) -> dict:
+def _central_anomaly_metric(payload: dict, keys: list[str], cutoff: date = date(2026, 9, 10)) -> dict:
     """Build the same six-variable local 14-day anomaly diagnostic for every display day."""
     daily = payload["daily"]
     indexes = {date.fromisoformat(day): index for index, day in enumerate(daily["time"])}
@@ -1293,7 +1328,6 @@ def _central_anomaly_metric(payload: dict, keys: list[str]) -> dict:
     last_year: list[float | None] = []
     current_year: list[float | None] = []
     current_status: list[str] = []
-    cutoff = date(2026, 9, 10)
     for key in keys:
         baseline = {
             variable: [aggregates[year][key][variable] for year in range(1991, 2025)
@@ -1333,13 +1367,36 @@ def _central_anomaly_metric(payload: dict, keys: list[str]) -> dict:
         "last_year_label": "2025", "current_year_label": "2026",
         "history_years": list(range(1991, 2025)), "history_year_count": 34,
         "history_reference_mode": "in_sample_local_same_window_1991_2024_midrank",
-        "percentile_input_rounding": "three_decimals_before_score",
+        "percentile_input_rounding": "displayed_two_decimals_before_score",
         "score_rounding": "ROUND_HALF_UP_two_decimals",
         "status": "available", "last_year_status": last_status, "current_year_status": current_status,
         "status_counts": {"last_year": _status_counts(last_status), "current_year": _status_counts(current_status)},
         "display_cutoff_date": cutoff.isoformat(),
         "cross_region_comparable": False, "weather_stress_score": None,
     }
+
+
+def _central_payload_with_current_overlay(payload: dict, aoi_name: str, cutoff: date) -> dict:
+    """Append current overlay dates to a validated frozen Central Asia payload."""
+    overlay = _load_current_au_central_overlay().get(aoi_name, {})
+    if not overlay:
+        return payload
+    extended = dict(payload)
+    daily = {key: list(value) if isinstance(value, list) else value for key, value in payload["daily"].items()}
+    variable_map = {
+        "temperature_2m_max": "temperature_2m_max",
+        "temperature_2m_min": "temperature_2m_min",
+        "precipitation_sum": "precipitation_sum",
+        "shortwave_radiation_sum": "shortwave_radiation_sum",
+        "et0_fao_evapotranspiration": "et0_fao_evapotranspiration",
+        "vapour_pressure_deficit_max": "vapor_pressure_deficit_max",
+    }
+    for parsed in sorted(day for day in overlay if date(2026, 9, 10) < day <= cutoff):
+        daily["time"].append(parsed.isoformat())
+        for target, source in variable_map.items():
+            daily[target].append(overlay[parsed][source])
+    extended["daily"] = daily
+    return extended
 
 
 def build_central_asia_seasonal() -> dict:
@@ -1355,6 +1412,9 @@ def build_central_asia_seasonal() -> dict:
             if row.get("country") in {"Kazakhstan", "Kyrgyzstan", "Tajikistan", "Turkmenistan", "Uzbekistan"}:
                 rows_by_aoi[row["aoi_name"]].append(row)
     raw_payloads = _central_asia_raw_payloads()
+    current_overlay = _load_current_au_central_overlay()
+    central_overlay = {aoi: rows for aoi, rows in current_overlay.items() if aoi in CENTRAL_ASIA_IDS}
+    cutoff = min((max(rows) for rows in central_overlay.values()), default=date(2026, 9, 10))
     labels = {
         "temperature_2m_max": ("日最高温", "°C"), "temperature_2m_min": ("日最低温", "°C"),
         "precipitation_sum": ("日降水", "mm"), "shortwave_radiation_sum": ("日短波辐射", "MJ/m²"),
@@ -1380,15 +1440,31 @@ def build_central_asia_seasonal() -> dict:
                 hist_max[index] = numeric(f"{variable}_hist_max")
                 prior[index] = numeric(f"{variable}_2025")
                 current[index] = numeric(f"{variable}_2026")
+                actual = date(2026, *(int(part) for part in key.split("-")))
+                overlay_source = "vapor_pressure_deficit_max" if variable == "vapour_pressure_deficit_max" else variable
+                if actual <= cutoff and actual in central_overlay.get(aoi_name, {}):
+                    current[index] = central_overlay[aoi_name][actual].get(overlay_source)
+            current_status = []
+            for index, key in enumerate(keys):
+                actual = date(2026, *(int(part) for part in key.split("-")))
+                if actual > cutoff:
+                    current_status.append("future")
+                elif current[index] is None:
+                    current_status.append("source_gap")
+                else:
+                    current_status.append("available")
             metrics[variable] = {
                 **_raw_meta(labels[variable][0], labels[variable][1]),
                 "day_keys": keys, "history_min": hist_min, "history_max": hist_max,
                 "last_year": prior, "current_year": current, "last_year_label": "2025",
                 "current_year_label": "2026", "history_years": list(range(1991, 2025)),
                 "history_year_count": 34, "status": "available",
+                "current_year_status": current_status,
+                "display_cutoff_date": cutoff.isoformat(),
                 "lineage": first.get("gap_codes", ""),
             }
-        metrics["weather_anomaly_score"] = _central_anomaly_metric(raw_payloads[aoi_name], keys)
+        extended_payload = _central_payload_with_current_overlay(raw_payloads[aoi_name], aoi_name, cutoff)
+        metrics["weather_anomaly_score"] = _central_anomaly_metric(extended_payload, keys, cutoff)
         result[CENTRAL_ASIA_IDS[aoi_name]] = {
             "country": first["country"], "country_display_name": CENTRAL_COUNTRY_DISPLAY[first["country"]],
             "aoi_name": aoi_name, "aoi_display_name": CENTRAL_AOI_DISPLAY[aoi_name],
@@ -1397,6 +1473,7 @@ def build_central_asia_seasonal() -> dict:
             "display_window_start": window_start, "display_window_end": window_end,
             "display_window_label": window_label, "display_window_status": window_status,
             "cross_year_axis": False,
+            "display_cutoff_date": cutoff.isoformat(),
             "metrics": metrics, "gap_codes": first.get("gap_codes", "").split(";") if first.get("gap_codes") else [],
         }
     return result
@@ -2014,7 +2091,7 @@ def _enrich_network_details(geography: str, rows: list[dict], national: dict) ->
                 "factor_detail_status": "available_same_model_recompute",
                 "factor_detail_note": "按新疆 V0.2 同一权重与同期历史分布复算；仍为未校准理论胁迫分。面积权重不参与模型分数计算。",
             })
-        return enriched
+        return sorted(enriched, key=lambda row: (-float(row.get("production_weight_share") or 0), row["name"]))
 
     if geography == "Australia":
         raw = _australia_raw_details(cutoff)
@@ -2040,7 +2117,7 @@ def _enrich_network_details(geography: str, rows: list[dict], national: dict) ->
                 "factor_detail_status": "available_embedded_model_output",
                 "factor_detail_note": "单因子直接来自澳大利亚 V0.3 已发布 AOI 组件；仍为未校准理论胁迫分。",
             })
-        return enriched
+        return sorted(enriched, key=lambda row: (-float(row.get("production_weight_share") or 0), row["name"]))
 
     raw = _old_network_raw_details(geography, cutoff)
     components = ({"United States": _us_detail_components, "Brazil": _brazil_detail_components,
@@ -2084,7 +2161,11 @@ def _enrich_network_details(geography: str, rows: list[dict], national: dict) ->
                 "当前点文件已发生源修订，复算地区总分与已发布快照不一致；为避免混合快照，本地区单因子暂不展示。"
             ),
         })
-    return enriched
+    return sorted(enriched, key=lambda row: (
+        row.get("production_weight_share") is None,
+        -float(row.get("production_weight_share") or 0),
+        row["name"],
+    ))
 
 
 def _national_details(geography: str, raw: dict) -> list[dict]:
@@ -2293,7 +2374,6 @@ PRODUCTION_WEIGHTED_REGIONS = ("China", "United States", "Brazil", "India", "Aus
 PRODUCTION_WEIGHTED_REGION_IDS = {
     "China": "china", "United States": "us", "Brazil": "brazil", "India": "india", "Australia": "australia",
 }
-PRODUCTION_WEIGHTED_CUTOFF = date(2026, 9, 10)
 PRODUCTION_WEIGHTED_KEYS = _window_keys("04-01", "11-30")
 
 
@@ -2341,12 +2421,12 @@ def _weighted_production_day(values_by_region: dict[str, float | None], weights:
     return {"value": numerator / coverage, "production_weight_coverage": coverage, "valid_region_ids": valid_ids, "status": "available"}
 
 
-def _production_year_trace(year: int, daily: dict[str, dict[date, float | None]], weights: dict[str, float], current: bool = False) -> tuple[list[float | None], list[float | None], list[list[str]], list[str]]:
+def _production_year_trace(year: int, daily: dict[str, dict[date, float | None]], weights: dict[str, float], cutoff: date, current: bool = False) -> tuple[list[float | None], list[float | None], list[list[str]], list[str]]:
     values, coverage, valid_ids, statuses = [], [], [], []
     for key in PRODUCTION_WEIGHTED_KEYS:
         month, day = (int(part) for part in key.split("-"))
         actual = date(year, month, day)
-        if current and actual > PRODUCTION_WEIGHTED_CUTOFF:
+        if current and actual > cutoff:
             values.append(None); coverage.append(None); valid_ids.append([]); statuses.append("future"); continue
         local = {PRODUCTION_WEIGHTED_REGION_IDS[geo]: daily[PRODUCTION_WEIGHTED_REGION_IDS[geo]].get(actual) for geo in PRODUCTION_WEIGHTED_REGIONS}
         result = _weighted_production_day(local, weights)
@@ -2357,12 +2437,17 @@ def _production_year_trace(year: int, daily: dict[str, dict[date, float | None]]
 def build_production_weighted_weather(brief: dict) -> dict:
     weight_rows, weights = _production_weights(brief)
     daily = {PRODUCTION_WEIGHTED_REGION_IDS[geo]: _score_daily_by_date(NATIONAL_DAILY_PATHS[geo] if geo in NATIONAL_DAILY_PATHS else DAILY_PATHS[geo]) for geo in PRODUCTION_WEIGHTED_REGIONS}
+    latest_by_region = {
+        region_id: max(day for day, value in values.items() if value is not None)
+        for region_id, values in daily.items()
+    }
+    common_cutoff = min(latest_by_region.values())
     history_years = list(range(2015, 2025))
     history, history_coverage, history_ids, history_status = {}, {}, {}, {}
     for year in history_years:
-        history[str(year)], history_coverage[str(year)], history_ids[str(year)], history_status[str(year)] = _production_year_trace(year, daily, weights)
-    last_year, last_coverage, last_ids, last_status = _production_year_trace(2025, daily, weights)
-    current_year, current_coverage, current_ids, current_status = _production_year_trace(2026, daily, weights, current=True)
+        history[str(year)], history_coverage[str(year)], history_ids[str(year)], history_status[str(year)] = _production_year_trace(year, daily, weights, common_cutoff)
+    last_year, last_coverage, last_ids, last_status = _production_year_trace(2025, daily, weights, common_cutoff)
+    current_year, current_coverage, current_ids, current_status = _production_year_trace(2026, daily, weights, common_cutoff, current=True)
     history_min = [min((history[str(year)][idx] for year in history_years if history[str(year)][idx] is not None), default=None) for idx in range(len(PRODUCTION_WEIGHTED_KEYS))]
     history_max = [max((history[str(year)][idx] for year in history_years if history[str(year)][idx] is not None), default=None) for idx in range(len(PRODUCTION_WEIGHTED_KEYS))]
     coverage_values = [value for series in list(history_coverage.values()) + [last_coverage, current_coverage] for value in series if value is not None]
@@ -2371,10 +2456,9 @@ def build_production_weighted_weather(brief: dict) -> dict:
         "last_year": {status: last_status.count(status) for status in ("available", "coverage_below_gate", "future")},
         "current_year": {status: current_status.count(status) for status in ("available", "coverage_below_gate", "future")},
     }
-    cutoff_index = PRODUCTION_WEIGHTED_KEYS.index("09-10")
     current_scores = {}
     for geo in PRODUCTION_WEIGHTED_REGIONS:
-        current_scores[PRODUCTION_WEIGHTED_REGION_IDS[geo]] = daily[PRODUCTION_WEIGHTED_REGION_IDS[geo]].get(PRODUCTION_WEIGHTED_CUTOFF)
+        current_scores[PRODUCTION_WEIGHTED_REGION_IDS[geo]] = daily[PRODUCTION_WEIGHTED_REGION_IDS[geo]].get(common_cutoff)
     metric = {
         "id": PRODUCTION_WEIGHTED_ID, "label": PRODUCTION_WEIGHTED_NAME, "unit": "分", "window": "逐日产量权重展示合成",
         "scale_type": "fixed_score_0_100", "scale_min": 0, "scale_max": 100,
@@ -2388,7 +2472,7 @@ def build_production_weighted_weather(brief: dict) -> dict:
         "last_year_valid_region_ids": last_ids, "current_year_valid_region_ids": current_ids,
         "last_year_status": last_status, "current_year_status": current_status, "status_counts": status_counts,
         "display_window_start": "04-01", "display_window_end": "11-30", "display_window_label": "04-01—11-30",
-        "cross_year_axis": False, "common_cutoff_date": PRODUCTION_WEIGHTED_CUTOFF.isoformat(),
+        "cross_year_axis": False, "common_cutoff_date": common_cutoff.isoformat(),
         "historical_band_note": "历史带不含补造的澳洲历史分；覆盖不足不按0处理；地区组合变化可能同时影响曲线",
         "coverage_min": min(coverage_values) if coverage_values else None, "coverage_max": max(coverage_values) if coverage_values else None,
         "usable_day_counts": {
@@ -2403,7 +2487,8 @@ def build_production_weighted_weather(brief: dict) -> dict:
         "id": PRODUCTION_WEIGHTED_ID, "label": PRODUCTION_WEIGHTED_NAME, "display_only": True,
         "not_calibrated": True, "not_loss_percent": True, "not_unified_model": True,
         "unit": "分", "score_axis": "0—100", "production_total_1000_480lb_bales": int(math.fsum(row["production_1000_480lb_bales"] for row in weight_rows)),
-        "weights": weight_rows, "common_cutoff_date": PRODUCTION_WEIGHTED_CUTOFF.isoformat(),
+        "weights": weight_rows, "common_cutoff_date": common_cutoff.isoformat(),
+        "latest_available_date_by_region": {region_id: day.isoformat() for region_id, day in latest_by_region.items()},
         "current_region_scores": current_scores, "current_score": current_result["value"],
         "weighted_production_coverage": current_result["production_weight_coverage"], "valid_region_ids": current_result["valid_region_ids"],
         "current_status": current_result["status"], "seasonal_metric": metric,
@@ -2453,6 +2538,7 @@ def build() -> dict:
         seasonal[region_id]["raw_metrics"] = raw["metrics"]
         seasonal[region_id]["raw_weather"] = raw
     central_watch = build_central_asia_watch()
+    central_watch_payload = read_json(CENTRAL_ASIA_WATCH_PATH)
     subregion_seasonal = build_subregion_seasonal(regions)
     return {
         "dashboard_id": "cotton_public_supply_weather_dashboard_v0_7",
@@ -2478,8 +2564,10 @@ def build() -> dict:
         "seasonal": seasonal,
         "subregion_seasonal": subregion_seasonal,
         "central_asia_watch": {
-            "as_of_weather_date": "2026-09-10", "source_model": "era5",
-            "observed_reanalysis_only": True, "forecast_included": False,
+            "as_of_weather_date": central_watch_payload["as_of_weather_date"],
+            "source_model": central_watch_payload.get("historical_source_model", central_watch_payload.get("source_model", "era5")),
+            "observed_reanalysis_only": central_watch_payload.get("observed_reanalysis_only", False),
+            "forecast_included": central_watch_payload.get("forecast_included", True),
             "cross_region_comparable": False, "score_available_count": 0,
             "weather_anomaly_score_available_count": 10, "weather_stress_score_available_count": 0,
             "aoi_count": 10, "interpretation_warning": "异常度高只表示当地天气偏离自身常态，不代表更不利、减产更多或可跨 AOI 排名；棉花胁迫分 0/10 可用。",
