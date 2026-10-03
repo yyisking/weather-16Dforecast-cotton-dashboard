@@ -102,7 +102,13 @@ def digest(path: Path) -> str:
     if path.is_file():
         return hashlib.sha256(path.read_bytes()).hexdigest()
     h = hashlib.sha256()
-    for child in sorted(p for p in path.rglob("*") if p.is_file()):
+    for child in sorted(
+        p
+        for p in path.rglob("*")
+        if p.is_file()
+        and "__pycache__" not in p.parts
+        and p.suffix not in {".pyc", ".pyo"}
+    ):
         h.update(child.relative_to(path).as_posix().encode() + b"\0" + child.read_bytes() + b"\0")
     return h.hexdigest()
 
@@ -291,7 +297,8 @@ class PublicDashboardTest(unittest.TestCase):
         ])
         self.assertEqual(sum(row["target_point_count"] for row in china["network_details"]), 18)
         self.assertIsNone(china["official_production_weight_coverage"])
-        self.assertTrue(all(row["production_weight_share"] is None for row in china["network_details"]))
+        self.assertAlmostEqual(math.fsum(row["production_weight_share"] for row in china["network_details"]), 1.0, places=12)
+        self.assertTrue(all(row["weight_type"] == "official_cotton_area_proxy" for row in china["network_details"]))
 
         australia = regions["Australia"]
         self.assertEqual(australia["raw_network_name"], "澳洲8 AOI 原始天气网络")
@@ -1155,7 +1162,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("历史带不含补造的澳洲历史分", self.payload["five_region_production_weighted_weather_stress_display"]["seasonal_metric"]["historical_band_note"])
         self.assertIn("覆盖不足不按0处理", html)
         self.assertIn("M.nonnegative?Math.max(0,lo-extra):lo-extra", html)
-        self.assertIn("v=20261002-v15-subregion-drilldown", html)
+        self.assertIn("v=20261003-v16-subregion-seasonal", html)
         self.assertNotIn("v=20260923-v05-raw-weather", html)
         self.assertIn("data-chart-region=\"${weightedId}\"", html)
         self.assertIn("const first=app.querySelector('.hero')", html)
@@ -1292,6 +1299,7 @@ class PublicDashboardTest(unittest.TestCase):
             result = json.loads(json.dumps(payload))
             result["dashboard_id"] = "<versioned dashboard id>"
             result["five_region_production_weighted_weather_stress_display"] = "<regional V0.2 dependent composite>"
+            result.pop("subregion_seasonal", None)
             changed_regions = {"china", "us", "brazil", "india", "australia"}
             result["regions"] = ["<regional V0.2 successor>" if row.get("id") in changed_regions else row for row in result["regions"]]
             for region_id in changed_regions:
@@ -1305,6 +1313,82 @@ class PublicDashboardTest(unittest.TestCase):
 
         self.assertEqual(normalize(previous), normalize(self.payload))
 
+    def test_xinjiang_official_area_proxy_weights_are_explicit_and_reproducible(self):
+        contract = json.loads(builder.XINJIANG_AREA_WEIGHT_PATH.read_text(encoding="utf-8"))
+        china = next(region for region in self.payload["regions"] if region["id"] == "china")
+        details = {row["id"]: row for row in china["network_details"]}
+        self.assertEqual(set(details), set(builder.XINJIANG_SUBREGIONS))
+        self.assertAlmostEqual(sum(row["production_weight_share"] for row in details.values()), 1.0, places=12)
+        self.assertAlmostEqual(contract["represented_area_coverage_of_xinjiang_2022"], 2480.42 / (2496.89 * 1.5), places=12)
+        for key, row in details.items():
+            source = contract["groups"][key]
+            self.assertEqual(row["weight_type"], "official_cotton_area_proxy")
+            self.assertEqual(row["weight_area_10k_mu"], source["area_10k_mu"])
+            self.assertEqual(row["production_weight_share"], source["weight_share_within_displayed_groups"])
+            self.assertAlmostEqual(row["weight_coverage_of_xinjiang_2022"], contract["represented_area_coverage_of_xinjiang_2022"], places=12)
+
+    def test_every_subregion_has_local_raw_seasonality_and_honest_score_status(self):
+        expected_counts = {"china": 7, "us": 16, "brazil": 11, "india": 10, "australia": 8}
+        self.assertEqual({key: len(value) for key, value in self.payload["subregion_seasonal"].items()}, expected_counts)
+        mismatch = {"us": {"OK", "TX"}, "brazil": {"MT"}, "india": {"GJ"}}
+        for region in self.payload["regions"]:
+            bundles = self.payload["subregion_seasonal"][region["id"]]
+            for detail in region["network_details"]:
+                bundle = bundles[detail["id"]]
+                self.assertEqual(set(bundle["raw_metrics"]), set(builder.RAW_LABELS))
+                for metric in bundle["raw_metrics"].values():
+                    self.assertEqual(len(metric["day_keys"]), len(metric["current_year"]))
+                    self.assertEqual(len(metric["day_keys"]), len(metric["history_min"]))
+                if detail["id"] in mismatch.get(region["id"], set()):
+                    self.assertEqual(bundle["status"], "source_revision_mismatch")
+                    self.assertEqual(bundle["metrics"], {})
+                else:
+                    self.assertEqual(bundle["status"], "available")
+                    self.assertIn("score", bundle["metrics"])
+                    self.assertTrue(any(value is not None for value in bundle["metrics"]["score"]["history_min"]))
+
+    def test_subregion_chart_current_values_match_displayed_local_values(self):
+        for region in self.payload["regions"]:
+            bundles = self.payload["subregion_seasonal"][region["id"]]
+            for detail in region["network_details"]:
+                bundle = bundles[detail["id"]]
+                for metric_id, displayed in (detail.get("raw_weather") or {}).get("values", {}).items():
+                    if metric_id.endswith("_unit") or metric_id not in bundle["raw_metrics"] or displayed is None:
+                        continue
+                    metric = bundle["raw_metrics"][metric_id]
+                    key = metric["display_cutoff_date"][5:]
+                    self.assertAlmostEqual(metric["current_year"][metric["day_keys"].index(key)], displayed, places=3)
+                if bundle["status"] != "available":
+                    continue
+                score_metric = bundle["metrics"]["score"]
+                key = score_metric["display_cutoff_date"][5:]
+                self.assertAlmostEqual(score_metric["current_year"][score_metric["day_keys"].index(key)], detail["score"], places=2)
+
+    def test_subregion_missing_and_zero_factor_reasons_are_specific(self):
+        allowed = {"inactive_stage", "data_or_reference_gap", "source_revision_mismatch", "available_zero", "available_signal"}
+        for region in self.payload["regions"]:
+            for detail in region["network_details"]:
+                self.assertIn("score_diagnostic", detail)
+                self.assertTrue(detail["score_diagnostic"]["reason"])
+                diagnostics = detail.get("factor_diagnostics") or {}
+                self.assertEqual(set(diagnostics), set(detail.get("factor_scores") or {}))
+                for factor, value in (detail.get("factor_scores") or {}).items():
+                    diagnostic = diagnostics[factor]
+                    self.assertIn(diagnostic["status"], allowed)
+                    self.assertTrue(diagnostic["reason"])
+                    if value is None:
+                        self.assertIn(diagnostic["status"], {"inactive_stage", "data_or_reference_gap", "source_revision_mismatch"})
+                    elif abs(float(value)) < 1e-12:
+                        self.assertEqual(diagnostic["status"], "available_zero")
+                        self.assertIn("未落入", diagnostic["reason"])
+
+        us = next(region for region in self.payload["regions"] if region["id"] == "us")
+        al = next(row for row in us["network_details"] if row["id"] == "AL")
+        self.assertEqual(al["factor_diagnostics"]["root_zone_dryness"]["status"], "inactive_stage")
+        self.assertEqual(al["factor_diagnostics"]["harvest_rain"]["status"], "available_zero")
+        tx = next(row for row in us["network_details"] if row["id"] == "TX")
+        self.assertTrue(all(item["status"] == "source_revision_mismatch" for item in tx["factor_diagnostics"].values()))
+
     def test_page_and_publish_files_are_synced_and_safe(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         for phrase in ("全球供需锚点", "五个棉区天气胁迫", "分区域查看", "查看区域详情", "当前国家／地区", "国家内部产区", "选择地区查看具体因子", "当前所选地区", "展开完整州／邦／AOI 表格", "全球棉花五大种植区域天气胁迫总评分（产区产量加权）", "产量加权详情", "共同截止", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.7", "USDA供需截止", "天气因子原始数据", "模型天气胁迫单因子评分", "Tmax日最高温度（14天移动平均）", "Tmin日最低温度（14天移动平均）", "TP累计降水量（14天累计滚动值）", "SWd日短波辐射（14日移动平均）", "MJ/m²/日", "天气原值与理论分数均未换算为 USDA 产量", "太阳辐射模型状态："):
@@ -1314,6 +1398,11 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("正式 global_numeric_weather_score 仍未生成；上方五区产量加权分仅为展示合成，未执行天气到供给数量的换算。", html)
         self.assertIn("M.solar_display_status", html)
         self.assertIn("displayDate=M.display_cutoff_date||r.date||''", html)
+        self.assertIn("data-chart-subregion", html)
+        self.assertIn("DATA.subregion_seasonal", html)
+        self.assertIn("官方面积代理权重", html)
+        self.assertIn("当地当前生育阶段未启用该因子", (ROOT / "data.json").read_text(encoding="utf-8"))
+        self.assertIn("0.00 是已计算且未落入历史不利尾部", html)
         self.assertIn("first.insertAdjacentHTML('beforebegin',weightedPanel(c))", html)
         self.assertNotIn("澳大利亚未接入官方供需数量", html)
         self.assertNotIn("bullish", html.lower())
@@ -1342,7 +1431,7 @@ class PublicDashboardTest(unittest.TestCase):
     def test_published_data_fetch_is_versioned_for_cache_busting(self):
         for page in (ROOT / "index.html", ROOT / "dist/index.html"):
             html = page.read_text(encoding="utf-8")
-            self.assertIn("fetch('./data.json?v=20261002-v15-subregion-drilldown')", html)
+            self.assertIn("fetch('./data.json?v=20261003-v16-subregion-seasonal')", html)
             self.assertNotIn("fetch('./data.json')", html)
 
     def test_temp_builder_is_deterministic(self):

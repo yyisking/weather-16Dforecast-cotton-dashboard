@@ -37,6 +37,7 @@ NATIONAL_DAILY_PATHS = {
 }
 CENTRAL_ASIA_WATCH_PATH = COTTON_ROOT / "research/derived/central_asia_cotton_current_weather_watch_v0_2.json"
 CENTRAL_ASIA_SEASONAL_PATH = COTTON_ROOT / "research/derived/australia_central_asia_cotton_era5_daily_seasonality_v0_2.csv"
+XINJIANG_AREA_WEIGHT_PATH = COTTON_ROOT / "research/audits/xinjiang_dashboard_area_weight_proxy_v0_1.json"
 REGION_PATHS = {
     "United States": COTTON_ROOT / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_refresh_2026_09_29_latest.json",
     "China": COTTON_ROOT / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_2_latest.json",
@@ -259,6 +260,7 @@ PIPELINE_PATHS = {
     "United States": COTTON_ROOT / "us_weather/pipelines/build_us_national_theoretical_weather_stress_index_v0_1.py",
     "Brazil": COTTON_ROOT / "br_weather/pipelines/build_brazil_national_theoretical_weather_stress_index_v0_1.py",
     "India": COTTON_ROOT / "in_weather/pipelines/build_india_national_theoretical_weather_stress_index_v0_1.py",
+    "Australia": COTTON_ROOT / "au_weather/pipelines/build_australia_national_theoretical_weather_stress_index_v0_3.py",
 }
 
 POINT_META_PATHS = {
@@ -1446,6 +1448,40 @@ def _old_network_raw_details(geography: str, cutoff: date) -> dict[str, dict]:
     return {group: _raw_detail(records, points, cutoff) for group, points in groups.items()}
 
 
+def _factor_diagnostic(value: float | None, enabled: bool, *, mismatch: bool = False) -> dict[str, str]:
+    if mismatch:
+        return {
+            "status": "source_revision_mismatch",
+            "reason": "源修订导致快照不一致：当前点文件复算值与已发布地区总分不一致，暂不混用。",
+        }
+    if not enabled:
+        return {"status": "inactive_stage", "reason": "当地当前生育阶段未启用该因子。"}
+    if value is None:
+        return {
+            "status": "data_or_reference_gap",
+            "reason": "该因子已启用，但14日天气窗口、点位覆盖或同期历史参考不足。",
+        }
+    if abs(float(value)) < 1e-12:
+        return {"status": "available_zero", "reason": "已计算：当前未落入该因子的历史不利尾部。"}
+    return {"status": "available_signal", "reason": "已计算：当前存在历史不利尾部信号。"}
+
+
+def _score_diagnostic(score: float | None, factor_diagnostics: dict[str, dict[str, str]], *, mismatch: bool = False) -> dict[str, str]:
+    if mismatch:
+        return {
+            "status": "published_score_factor_snapshot_mismatch",
+            "reason": "地区总分沿用已发布快照；当前点文件已修订，单因子为避免混合新旧快照而暂不展示。",
+        }
+    if score is None:
+        return {"status": "gap", "reason": "当前没有满足覆盖门的地区综合分；缺值不按0处理。"}
+    if abs(float(score)) < 1e-12:
+        enabled = [item for item in factor_diagnostics.values() if item["status"] not in {"inactive_stage", "source_revision_mismatch"}]
+        if enabled and all(item["status"] == "available_zero" for item in enabled):
+            return {"status": "available_zero", "reason": "已计算：当前所有启用因子均未落入各自历史不利尾部，因此综合分为0。"}
+        return {"status": "available_zero", "reason": "已计算：启用因子的加权结果为0；不是缺失值。"}
+    return {"status": "available_signal", "reason": "已计算：综合分由当前启用且可用的当地因子合成。"}
+
+
 def _china_detail_components(cutoff: date) -> dict[str, dict]:
     successor = _load_pipeline("China")
     base = successor._load_base()
@@ -1465,13 +1501,17 @@ def _china_detail_components(cutoff: date) -> dict[str, dict]:
             components[point] = base.point_component_score(point_factors[point], group, cutoff.month)
         valid = [components[point][0] for point in points if components[point][0] is not None]
         factor_scores = {}
+        factor_diagnostics = {}
         for factor in base.FACTORS:
+            enabled = base.WEIGHTS[group][cutoff.month].get(factor, 0) > 0
             factor_values = [point_factors[point][factor] for point in points
-                             if base.WEIGHTS[group][cutoff.month].get(factor, 0) > 0 and point_factors[point][factor] is not None]
+                             if enabled and point_factors[point][factor] is not None]
             factor_scores[factor] = math.fsum(factor_values) / len(factor_values) if factor_values else None
+            factor_diagnostics[factor] = _factor_diagnostic(factor_scores[factor], enabled)
         results[key] = {
             "score": math.fsum(valid) / len(valid) if valid else None,
             "factor_scores": factor_scores,
+            "factor_diagnostics": factor_diagnostics,
             "stage_proxy": base.STAGES[group][cutoff.month],
         }
     return results
@@ -1488,6 +1528,7 @@ def _us_detail_components(cutoff: date) -> dict[str, dict]:
     results = {}
     for state, points in points_by_state.items():
         point_results = []
+        enabled_by_factor = {factor: False for factor in module.FACTORS}
         for point in points:
             regime = module.POINT_REGIME[point]
             if cutoff.month not in module.STAGE[regime]:
@@ -1498,6 +1539,7 @@ def _us_detail_components(cutoff: date) -> dict[str, dict]:
                 if weights.get(factor, 0.0) <= 0:
                     factors[factor] = None
                     continue
+                enabled_by_factor[factor] = True
                 target = module.calc_exposure(by_point[point], cutoff, factor)
                 references = []
                 if target is not None:
@@ -1521,6 +1563,10 @@ def _us_detail_components(cutoff: date) -> dict[str, dict]:
         results[state] = {
             "score": math.fsum(valid_scores) / len(valid_scores) if valid_scores else None,
             "factor_scores": factor_scores,
+            "factor_diagnostics": {
+                factor: _factor_diagnostic(factor_scores[factor], enabled_by_factor[factor])
+                for factor in module.FACTORS
+            },
             "stage_proxy": "；".join(sorted({item["stage"] for item in point_results})) if point_results else None,
         }
     return results
@@ -1537,9 +1583,18 @@ def _brazil_detail_components(cutoff: date) -> dict[str, dict]:
     for state in module.REGIMES:
         result = module.state_day_result(state, cutoff, points_by_state, exposures)
         if result is None:
-            results[state] = {"score": None, "factor_scores": {factor: None for factor in module.METRICS}, "stage_proxy": "当前月份未启用"}
+            factor_scores = {factor: None for factor in module.METRICS}
+            results[state] = {"score": None, "factor_scores": factor_scores,
+                              "factor_diagnostics": {factor: _factor_diagnostic(None, False) for factor in module.METRICS},
+                              "stage_proxy": "当前月份未启用"}
         else:
-            results[state] = {"score": result["score"], "factor_scores": result["factor_scores"], "stage_proxy": result["stage"]}
+            configured = module.REGIMES[state]["months"][cutoff.month][1]
+            factor_scores = result["factor_scores"]
+            results[state] = {"score": result["score"], "factor_scores": factor_scores,
+                              "factor_diagnostics": {
+                                  factor: _factor_diagnostic(factor_scores.get(factor), configured.get(factor, 0) > 0)
+                                  for factor in module.METRICS
+                              }, "stage_proxy": result["stage"]}
     return results
 
 
@@ -1559,7 +1614,10 @@ def _india_detail_components(cutoff: date) -> dict[str, dict]:
         weights = module.REGIMES[regime]["weights"].get(cutoff.month)
         points = [point for point, point_state_code in point_state.items() if point_state_code == state]
         if weights is None:
-            results[state] = {"score": None, "factor_scores": {factor: None for factor in module.FACTORS}, "stage_proxy": "当前月份未启用"}
+            factor_scores = {factor: None for factor in module.FACTORS}
+            results[state] = {"score": None, "factor_scores": factor_scores,
+                              "factor_diagnostics": {factor: _factor_diagnostic(None, False) for factor in module.FACTORS},
+                              "stage_proxy": "当前月份未启用"}
             continue
         point_results = []
         for point in points:
@@ -1573,6 +1631,10 @@ def _india_detail_components(cutoff: date) -> dict[str, dict]:
         }
         results[state] = {
             "score": module._aggregate(valid_scores), "factor_scores": factor_scores,
+            "factor_diagnostics": {
+                factor: _factor_diagnostic(factor_scores[factor], dict(zip(module.FACTORS, weights)).get(factor, 0) > 0)
+                for factor in module.FACTORS
+            },
             "stage_proxy": module.REGIMES[regime]["calendar"][cutoff.month],
         }
     return results
@@ -1583,37 +1645,356 @@ def _australia_raw_details(cutoff: date) -> dict[str, dict]:
     return {aoi: _raw_detail(records, (aoi,), cutoff) for aoi in records}
 
 
+def _season_dates(season_years: list[int] | range | tuple[int, ...], keys: list[str], cross_year: bool) -> list[date]:
+    days = []
+    for season_year in season_years:
+        for key in keys:
+            month, day = (int(part) for part in key.split("-"))
+            actual_year = season_year + 1 if cross_year and month < 9 else season_year
+            try:
+                days.append(date(actual_year, month, day))
+            except ValueError:
+                pass
+    return days
+
+
+def _subregion_metric(
+    values_by_date: dict[date, float | None], *, geography: str, metric_id: str,
+    keys: list[str], history_years: list[int], cutoff: date, cross_year: bool,
+    raw: bool,
+) -> dict:
+    """Turn one local daily series into the dashboard's common seasonal contract."""
+    current, current_status = _raw_trace(values_by_date, 2026, keys, cross_year, cutoff)
+    prior, prior_status = _raw_trace(values_by_date, 2025, keys, cross_year, None)
+    history = {year: _raw_trace(values_by_date, year, keys, cross_year, None)[0] for year in history_years}
+    history_min = [min((history[year][index] for year in history_years if history[year][index] is not None), default=None)
+                   for index in range(len(keys))]
+    history_max = [max((history[year][index] for year in history_years if history[year][index] is not None), default=None)
+                   for index in range(len(keys))]
+    active_keys = {
+        key for index, key in enumerate(keys)
+        if any(history[year][index] is not None for year in history_years)
+        or prior[index] is not None or current[index] is not None
+    }
+    for index, key in enumerate(keys):
+        if key not in active_keys:
+            if current_status[index] != "future":
+                current_status[index] = "inactive_stage"
+            prior_status[index] = "inactive_stage"
+    if raw:
+        label, unit, _source, _mode = RAW_LABELS[metric_id]
+        payload = _raw_meta_v05(label, unit, metric_id, "subregion_raw_display")
+    else:
+        payload = _score_meta(METRIC_META.get(metric_id, {"label": metric_id, "unit": "分", "window": "逐日因子分"}), metric_id)
+    digits = 3 if raw else 2
+    tidy = lambda values: [round(value, digits) if value is not None else None for value in values]
+    payload.update({
+        "day_keys": keys, "history_min": tidy(history_min), "history_max": tidy(history_max),
+        "last_year": tidy(prior), "current_year": tidy(current),
+        "last_year_label": "2025/26" if cross_year else "2025",
+        "current_year_label": "2026/27" if cross_year else "2026",
+        "history_years": history_years, "history_year_count": len(history_years),
+        "status": "available" if any(value is not None for value in current + prior + history_min + history_max) else "gap",
+        "last_year_status": prior_status, "current_year_status": current_status,
+        "active_periods": _compress_periods(keys, active_keys),
+        "display_cutoff_date": cutoff.isoformat(),
+        "source_gap_count": prior_status.count("source_gap") + current_status.count("source_gap"),
+        "status_counts": {"last_year": _status_counts(prior_status), "current_year": _status_counts(current_status)},
+        "historical_band_note": "历史最大—最小带按该地区自身序列计算；不是国家曲线下放。",
+    })
+    if not raw:
+        if geography == "China" and metric_id == "spring_wind":
+            payload.update({
+                "chart_display_start": "04-01", "chart_display_end": "05-31",
+                "chart_display_note": "图轴仅显示春季风害评分启用期 04-01—05-31；6—11月不展示。",
+            })
+        _apply_chart_display_window(payload, geography, metric_id)
+    return payload
+
+
+def _load_full_point_records(geography: str) -> tuple[dict[str, dict[date, dict[str, float | None]]], date]:
+    groups = _point_groups(geography)
+    points = {point for group in groups.values() for point in group}
+    records = {point: {} for point in points}
+    with POINT_DATA_PATHS[geography].open("r", encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            point = row.get("point_id")
+            if point not in records:
+                continue
+            try:
+                day = date.fromisoformat((row.get("date") or "")[:10])
+            except ValueError:
+                continue
+            records[point][day] = {
+                "tmax": _number(row.get("tmax")), "tmin": _number(row.get("tmin")),
+                "precip": _number(row.get("precip")), "sw_rad": _number(row.get("sw_rad")),
+            }
+    source_max = max(max(series) for series in records.values() if series)
+    return records, source_max
+
+
+@lru_cache(maxsize=None)
+def _subregion_raw_seasonal(geography: str, cutoff: date) -> dict[str, dict[str, dict]]:
+    cross_year = geography == "Australia"
+    if cross_year:
+        records, _source_max = _load_australia_records()
+        groups = {aoi: (aoi,) for aoi in records}
+        keys = _window_keys(AUSTRALIA_WINDOW[0], AUSTRALIA_WINDOW[1])
+        history_years = list(range(1991, 2025))
+    else:
+        records, _source_max = _load_full_point_records(geography)
+        groups = _point_groups(geography)
+        keys = _window_keys(SEASON_WINDOWS[geography][0], SEASON_WINDOWS[geography][1])
+        history_years = list(range(2005, 2025))
+    point_exposures = {
+        point: {
+            metric_id: _rolling_point_values(records[point], source, mode)
+            for metric_id, (_label, _unit, source, mode) in RAW_LABELS.items()
+        }
+        for point in records
+    }
+    result = {}
+    for group, points in groups.items():
+        metrics = {}
+        all_dates = sorted({day for point in points for metric in point_exposures[point].values() for day in metric})
+        for metric_id in RAW_LABELS:
+            values_by_date = {}
+            for day in all_dates:
+                values = [point_exposures[point][metric_id].get(day) for point in points]
+                valid = [value for value in values if value is not None]
+                values_by_date[day] = math.fsum(valid) / len(valid) if values and len(valid) / len(values) >= 0.60 else None
+            metrics[metric_id] = _subregion_metric(
+                values_by_date, geography=geography, metric_id=metric_id, keys=keys,
+                history_years=history_years, cutoff=cutoff, cross_year=cross_year, raw=True,
+            )
+        result[group] = metrics
+    return result
+
+
+@lru_cache(maxsize=None)
+def _subregion_factor_series(geography: str, cutoff: date) -> dict[str, dict[str, dict[date, float | None]]]:
+    """Recompute local score/factor daily series with each country's frozen model logic."""
+    result: dict[str, dict[str, dict[date, float | None]]] = defaultdict(lambda: defaultdict(dict))
+    keys = _window_keys(*(AUSTRALIA_WINDOW[:2] if geography == "Australia" else SEASON_WINDOWS[geography][:2]))
+    cross_year = geography == "Australia"
+    if geography == "China":
+        successor = _load_pipeline("China")
+        base = successor._load_base()
+        base.WEIGHTS = successor._weights()
+        weather, _source_max, _excluded = base.load_weather()
+        exposures = {point: {} for point in base.FIELD_POINTS}
+        for point, point_data in weather.items():
+            for day in sorted(point_data):
+                exposures[point][day] = base.trailing_exposure(point_data, day)
+        available = set.intersection(*(set(series) for series in weather.values()))
+        for day in (day for day in _season_dates(range(2015, 2027), keys, False) if day in available):
+            for group_id, config in XINJIANG_SUBREGIONS.items():
+                point_factors, point_scores = {}, []
+                for point in config["points"]:
+                    factors, _history = base.historical_scores(exposures, point, day)
+                    point_factors[point] = factors
+                    component = base.point_component_score(factors, config["model_group"], day.month)[0]
+                    if component is not None:
+                        point_scores.append(component)
+                result[group_id]["score"][day] = math.fsum(point_scores) / len(point_scores) if point_scores else None
+                for factor in base.FACTORS:
+                    values = [point_factors[point][factor] for point in config["points"]
+                              if base.WEIGHTS[config["model_group"]][day.month].get(factor, 0) > 0
+                              and point_factors[point][factor] is not None]
+                    result[group_id][factor][day] = math.fsum(values) / len(values) if values else None
+        return result
+
+    if geography == "United States":
+        module = _load_pipeline(geography)
+        registry = module.read_registry()
+        by_point, all_dates, _input_hash = module.read_weather(registry)
+        first_year = all_dates[0].year
+        exposures = {point: {factor: {} for factor in module.FACTORS} for point in by_point}
+        for point, series in by_point.items():
+            for day in all_dates:
+                for factor in module.FACTORS:
+                    value = module.calc_exposure(series, day, factor)
+                    if value is not None:
+                        exposures[point][factor][day] = value
+        points_by_state = _point_groups(geography)
+        available_dates = set(all_dates)
+        for day in (day for day in _season_dates(range(2015, 2027), keys, False) if day in available_dates):
+            for state, points in points_by_state.items():
+                point_results = []
+                for point in points:
+                    regime = module.POINT_REGIME[point]
+                    if day.month not in module.STAGE[regime]:
+                        continue
+                    _stage, weights = module.STAGE[regime][day.month]
+                    factors = {}
+                    for factor in module.FACTORS:
+                        if weights.get(factor, 0.0) <= 0:
+                            factors[factor] = None
+                            continue
+                        target = exposures[point][factor].get(day)
+                        refs = []
+                        if target is not None:
+                            for year in range(first_year, day.year):
+                                try:
+                                    ref_day = day.replace(year=year)
+                                except ValueError:
+                                    continue
+                                value = exposures[point][factor].get(ref_day)
+                                if value is not None:
+                                    refs.append(value)
+                        factors[factor] = module.midrank_score(target, refs, factor)
+                    score = module.combine_point(factors, weights)[0]
+                    point_results.append((score, factors))
+                scores = [score for score, _factors in point_results if score is not None]
+                result[state]["score"][day] = math.fsum(scores) / len(scores) if scores else None
+                for factor in module.FACTORS:
+                    values = [factors[factor] for _score, factors in point_results if factors[factor] is not None]
+                    result[state][factor][day] = math.fsum(values) / len(values) if values else None
+        return result
+
+    if geography == "Brazil":
+        module = _load_pipeline(geography)
+        points, series, source_max, _raw_hash = module.load_inputs()
+        points_by_state = {state: [] for state in module.REGIMES}
+        for point_id, point in points.items():
+            points_by_state[point["state"]].append(point_id)
+        exposures = module.build_exposures(series)
+        for day in (day for day in _season_dates(range(2015, 2027), keys, False) if day <= source_max):
+            for state in module.REGIMES:
+                item = module.state_day_result(state, day, points_by_state, exposures)
+                result[state]["score"][day] = item["score"] if item else None
+                for factor in module.METRICS:
+                    result[state][factor][day] = item["factor_scores"].get(factor) if item else None
+        return result
+
+    if geography == "India":
+        module = _load_pipeline(geography)
+        point_state = module.load_target_points()
+        weather, source_max = module.load_weather(point_state=point_state)
+        exposures = {point: {} for point in weather}
+        for point, daily in weather.items():
+            for day in daily:
+                exposure = module.trailing_exposure(daily, day)
+                if exposure is not None:
+                    exposures[point][day] = exposure
+        points_by_state = _point_groups(geography)
+        for day in (day for day in _season_dates(range(2015, 2027), keys, False) if day <= source_max):
+            for state, points in points_by_state.items():
+                regime = module.STATE_REGIME[state]
+                weights = module.REGIMES[regime]["weights"].get(day.month)
+                point_results = []
+                if weights is not None:
+                    for point in points:
+                        factors, _history = module.factor_scores(exposures, point, day)
+                        point_results.append((module.point_score(factors, weights)[0], factors))
+                scores = [score for score, _factors in point_results if score is not None]
+                result[state]["score"][day] = module._aggregate(scores)
+                for factor in module.FACTORS:
+                    result[state][factor][day] = module._aggregate(
+                        [factors[factor] for _score, factors in point_results if factors[factor] is not None]
+                    )
+        return result
+
+    if geography == "Australia":
+        module = _load_pipeline(geography)
+        raw_points = module._load_inputs(COTTON_ROOT.parent)[0]
+        for day in _season_dates(range(1991, 2027), keys, True):
+            if day.month not in module.MONTH_WEIGHTS:
+                continue
+            for aoi in module.EXPECTED_AOIS:
+                item = module._score_point(raw_points[aoi]["values"], day)
+                result[aoi]["score"][day] = item["score"]
+                for factor in module.FACTOR_ORDER:
+                    result[aoi][factor][day] = item["factor_scores"][factor]
+        return result
+    raise ValueError(f"unsupported subregion geography: {geography}")
+
+
+def build_subregion_seasonal(regions: list[dict]) -> dict:
+    """Build local-only score, factor and raw charts for every displayed subregion."""
+    output = {}
+    for geography in ("China", "United States", "Brazil", "India", "Australia"):
+        region_id = REGION_META[geography]["id"]
+        region = next(item for item in regions if item["id"] == region_id)
+        cutoff = date.fromisoformat(region["date"][:10])
+        cross_year = geography == "Australia"
+        keys = _window_keys(*(AUSTRALIA_WINDOW[:2] if cross_year else SEASON_WINDOWS[geography][:2]))
+        history_years = list(range(1991, 2025)) if cross_year else list(range(2015, 2025))
+        raw_metrics = _subregion_raw_seasonal(geography, cutoff)
+        factor_series = _subregion_factor_series(geography, cutoff)
+        output[region_id] = {}
+        for detail in region["network_details"]:
+            sub_id = detail["id"]
+            source_id = detail.get("source_name", sub_id)
+            score_allowed = detail.get("factor_detail_status") != "source_revision_mismatch"
+            metrics = {}
+            if score_allowed:
+                for metric_id, values in factor_series.get(source_id, {}).items():
+                    metrics[metric_id] = _subregion_metric(
+                        values, geography=geography, metric_id=metric_id, keys=keys,
+                        history_years=history_years, cutoff=cutoff, cross_year=cross_year, raw=False,
+                    )
+            output[region_id][sub_id] = {
+                "name": detail["name"], "status": "available" if score_allowed else "source_revision_mismatch",
+                "score_factor_chart_note": detail.get("factor_detail_note"),
+                "metrics": metrics, "raw_metrics": raw_metrics.get(source_id, {}),
+                "axis": "cross_year_month_day" if cross_year else "month_day",
+                "current_year": "2026/27" if cross_year else 2026,
+                "last_year": "2025/26" if cross_year else 2025,
+            }
+    return output
+
+
 def _enrich_network_details(geography: str, rows: list[dict], national: dict) -> list[dict]:
     """Attach current local raw values and local model-factor diagnostics."""
     cutoff = date.fromisoformat(str(national.get("date"))[:10])
     if geography == "China":
         raw = _old_network_raw_details(geography, cutoff)
         components = _china_detail_components(cutoff)
+        area_weight_contract = read_json(XINJIANG_AREA_WEIGHT_PATH)
+        area_groups = area_weight_contract["groups"]
         enriched = []
         for key, config in XINJIANG_SUBREGIONS.items():
             comp = components[key]
+            area = area_groups[key]
             enriched.append({
                 "id": key, "name": config["name"], "score": comp["score"],
                 "valid_point_count": raw[key]["valid_point_count"], "target_point_count": len(config["points"]),
-                "production_weight_share": None, "status": "available" if comp["score"] is not None else "gap",
-                "factor_scores": comp["factor_scores"], "raw_weather": raw[key], "stage_proxy": comp["stage_proxy"],
+                "production_weight_share": area["weight_share_within_displayed_groups"],
+                "weight_type": "official_cotton_area_proxy",
+                "weight_area_10k_mu": area["area_10k_mu"],
+                "weight_base": "2022_official_local_area_except_kuitun_2023_local_only",
+                "weight_coverage_of_xinjiang_2022": area_weight_contract["represented_area_coverage_of_xinjiang_2022"],
+                "status": "available" if comp["score"] is not None else "gap",
+                "factor_scores": comp["factor_scores"], "factor_diagnostics": comp["factor_diagnostics"],
+                "score_diagnostic": _score_diagnostic(comp["score"], comp["factor_diagnostics"]),
+                "raw_weather": raw[key], "stage_proxy": comp["stage_proxy"],
                 "point_names": [_point_name(point) for point in config["points"]],
-                "coverage_semantics": "新疆田间代理点等权；不是州市行政区或产量面积完整覆盖",
+                "coverage_semantics": "新疆田间代理点等权；面积权重仅为七个展示组内代理，约覆盖2022全疆官方棉花面积66.23%",
                 "factor_detail_status": "available_same_model_recompute",
-                "factor_detail_note": "按新疆 V0.2 同一权重与同期历史分布复算；仍为未校准理论胁迫分。",
+                "factor_detail_note": "按新疆 V0.2 同一权重与同期历史分布复算；仍为未校准理论胁迫分。面积权重不参与模型分数计算。",
             })
         return enriched
 
     if geography == "Australia":
         raw = _australia_raw_details(cutoff)
         components = {item["aoi_name"]: item for item in national.get("aoi_components") or []}
+        module = _load_pipeline("Australia")
+        configured = module.MONTH_WEIGHTS.get(cutoff.month, {})
         enriched = []
         for row in rows:
             aoi = row["name"]
             component = components.get(aoi, {})
+            factor_scores = component.get("factor_scores") or {}
+            factor_diagnostics = {
+                factor: _factor_diagnostic(factor_scores.get(factor), configured.get(factor, 0) > 0)
+                for factor in module.FACTOR_ORDER
+            }
             enriched.append({
                 **row, "id": aoi, "name": SUBREGION_DISPLAY[geography].get(aoi, aoi),
-                "source_name": aoi, "factor_scores": component.get("factor_scores") or {},
+                "source_name": aoi, "factor_scores": factor_scores,
+                "factor_diagnostics": factor_diagnostics,
+                "score_diagnostic": _score_diagnostic(row.get("score"), factor_diagnostics),
                 "raw_weather": raw.get(aoi), "stage_proxy": national.get("stage_proxy"),
                 "point_names": [aoi], "coverage_semantics": "单个城镇格点代理；不是 AOI 面平均",
                 "factor_detail_status": "available_embedded_model_output",
@@ -1643,11 +2024,17 @@ def _enrich_network_details(geography: str, rows: list[dict], national: dict) ->
             and abs(float(accepted_score) - float(recomputed_score)) <= 0.02
         )
         factor_scores = component.get("factor_scores") or {}
+        factor_diagnostics = component.get("factor_diagnostics") or {
+            factor: _factor_diagnostic(value, value is not None) for factor, value in factor_scores.items()
+        }
         if not snapshot_match:
             factor_scores = {factor: None for factor in factor_scores}
+            factor_diagnostics = {factor: _factor_diagnostic(None, False, mismatch=True) for factor in factor_scores}
         enriched.append({
             **row, "id": code, "name": SUBREGION_DISPLAY.get(geography, {}).get(code, row["name"]),
-            "factor_scores": factor_scores, "raw_weather": raw.get(code),
+            "factor_scores": factor_scores, "factor_diagnostics": factor_diagnostics,
+            "score_diagnostic": _score_diagnostic(accepted_score, factor_diagnostics, mismatch=not snapshot_match),
+            "raw_weather": raw.get(code),
             "stage_proxy": component.get("stage_proxy"), "point_names": [_point_name(point) for point in point_ids],
             "coverage_semantics": "州／邦内登记点等权；不是行政区面平均或完整农田覆盖",
             "factor_detail_status": "available_same_score_recompute" if snapshot_match else "source_revision_mismatch",
@@ -2026,6 +2413,7 @@ def build() -> dict:
         seasonal[region_id]["raw_metrics"] = raw["metrics"]
         seasonal[region_id]["raw_weather"] = raw
     central_watch = build_central_asia_watch()
+    subregion_seasonal = build_subregion_seasonal(regions)
     return {
         "dashboard_id": "cotton_public_supply_weather_dashboard_v0_7",
         "snapshot_as_of_date": brief["snapshot_as_of_date"],
@@ -2048,6 +2436,7 @@ def build() -> dict:
         "supply": supply,
         "regions": regions,
         "seasonal": seasonal,
+        "subregion_seasonal": subregion_seasonal,
         "central_asia_watch": {
             "as_of_weather_date": "2026-09-10", "source_model": "era5",
             "observed_reanalysis_only": True, "forecast_included": False,
@@ -2065,7 +2454,9 @@ def build() -> dict:
 def main() -> None:
     DIST.mkdir(parents=True, exist_ok=True)
     payload = build()
-    serialized = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    # The dashboard payload contains hundreds of local seasonal traces. Keep
+    # the public transfer compact; tests and browsers parse the same JSON.
+    serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n"
     for output in (SITE_ROOT / "data.json", DIST / "data.json"):
         output.write_text(serialized, encoding="utf-8")
         print(f"wrote {output}")
