@@ -589,6 +589,37 @@ class PublicDashboardTest(unittest.TestCase):
             self.assertEqual(actual["weather_anomaly_score"], float(expected_score))
         self.assertEqual(sum(1 for row in watch["aois"] for v in VARIABLES for s in ("current", "change_yoy", "percentile", "band") if row[v+"_"+s] is not None), 240)
 
+    def test_central_asia_country_then_aoi_hierarchy_is_complete_and_nonaggregating(self):
+        expected_order = ["Kazakhstan", "Kyrgyzstan", "Tajikistan", "Turkmenistan", "Uzbekistan"]
+        expected_counts = {
+            "Kazakhstan": 1,
+            "Kyrgyzstan": 2,
+            "Tajikistan": 2,
+            "Turkmenistan": 2,
+            "Uzbekistan": 3,
+        }
+        aois = self.payload["central_asia_watch"]["aois"]
+        grouped = {country: [row for row in aois if row["country"] == country] for country in expected_order}
+        self.assertEqual([country for country in expected_order if grouped[country]], expected_order)
+        self.assertEqual({country: len(rows) for country, rows in grouped.items()}, expected_counts)
+        self.assertEqual(sum(expected_counts.values()), len(aois))
+        self.assertEqual(len({row["id"] for row in aois}), 10)
+
+        html = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertIn("const centralCountryOrder=['Kazakhstan','Kyrgyzstan','Tajikistan','Turkmenistan','Uzbekistan']", html)
+        self.assertIn("function centralCountryGroups(aois)", html)
+        self.assertIn("data-central-country", html)
+        self.assertIn("aria-label','切换中亚国家", html)
+        self.assertIn("const countryAois=central.filter(item=>item.country===centralCountrySelected)", html)
+        self.assertIn("centralSelected=first?.id||''", html)
+        self.assertIn("不计算国家平均分或国家排名", html)
+        self.assertIn("state.countryAois.length} 个州／区域", html)
+        country_card_body = re.search(r"function centralCountryCard\(group\)\{(.*?)\}\n", html).group(1)
+        self.assertNotIn("weather_anomaly_score", country_card_body)
+        self.assertNotIn("central-anomaly", country_card_body)
+        self.assertIn(".central-country-grid", html)
+        self.assertIn(".region-grid,.central-country-grid,.central-grid{grid-template-columns:1fr}", html)
+
     def test_central_seasonal_is_10_by_6_raw_plus_anomaly_cropped_and_source_exact(self):
         seasonal = self.payload["central_asia_seasonal"]
         self.assertEqual(len(seasonal), 10)
