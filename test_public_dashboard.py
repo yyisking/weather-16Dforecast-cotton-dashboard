@@ -62,7 +62,10 @@ FROZEN_INPUT_SHAS = {
     COTTON / "research/derived/australia_central_asia_cotton_era5_daily_seasonality_v0_2.csv": "9ce46a2ab31981ccd8952fd328f5bfd230314857a84ede7a2f38f0bfc30be949",
     COTTON / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_1_daily.csv": "3fe931e9de5e195835d7f211aefd8d52a5d95d68dad3713df6c0f646e94d561a",
     COTTON / "cn_xj_weather/derived/xinjiang_theoretical_weather_stress_index_v0_2_daily.csv": "ba7b6e2cf02fab2ee40e833d879cb4c15b2975b94aa7ec1cf5adad03023492da",
-    COTTON / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_daily.csv": "f49451d591172c6104bc42dfff215d97d65af421c1b1331433c1a61e3c7025f3",
+    # Re-frozen after the 2026-10-04 local-pipeline rehearsal exposed that
+    # rerunning this retired predecessor no longer reproduced its historical
+    # bytes. It is not a dashboard consumer and is excluded from daily builds.
+    COTTON / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_daily.csv": "69ffe24cf0cbfaca23a2c49a92e9bb4de38215845ddd723aa25e2793cdb617eb",
     COTTON / "br_weather/derived/brazil_mt_theoretical_weather_stress_index_v0_2_daily.csv": "43cf7af726872dd3bffb877099d17f89ea51926caeb3dedf84fac47d3b5b9b9e",
     COTTON / "in_weather/derived/india_central_rainfed_theoretical_weather_stress_index_v0_1_daily.csv": "a7f852a54b1d94987c1a639a6aa5970683b2d62ca5892189732d07450dbc66e8",
     COTTON / "us_weather/derived/us_tx_theoretical_weather_stress_index_v0_2_refresh_2026_09_29_daily.csv": "c84748221e5719e831fb652a26e219a60225be4bd58eee585b69e90aa276f065",
