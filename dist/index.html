@@ -77,12 +77,17 @@
           status_counts:{last_year:count(lastYearStatus),current_year:count(currentYearStatus)}
         };
       }
+      function indiaJanuaryScoreNote(regionId,metric){
+        const hasJanuary=(metric?.day_keys||[]).some(key=>String(key).startsWith('01-'));
+        return regionId==='india'&&metric?.scale_type==='fixed_score_0_100'&&hasJanuary?'次年1月仅南部棉区晚期采摘／作物结束阶段参与评分；不是全印度统一启用，也不是下一季。':'';
+      }
       function renderChart(el){
         const rid=el.dataset.chartRegion,metric=el.dataset.chartMetric,subregion=el.dataset.chartSubregion;
         const source=subregion?((((DATA.subregion_seasonal||{})[rid]||{})[subregion]||{})):rid==='five_region_production_weighted_weather_stress_display'?((DATA||{})[rid]||{}):((DATA.seasonal||{})[rid]||(DATA.central_asia_seasonal||{})[rid]||{});
         let M=rid==='five_region_production_weighted_weather_stress_display'?source.seasonal_metric:((source.raw_metrics||{})[metric]||(source.metrics||{})[metric]);
         if(!M)return '';
         M=chartMetricForDisplay(M);
+        const indiaJanuaryNote=indiaJanuaryScoreNote(rid,M);
         const W=560,H=270,padL=48,padR=16,padT=32,padB=34,n=(M.day_keys||[]).length||365;
         const finiteValue=v=>v!==null&&v!==undefined&&Number.isFinite(Number(v));
         const arrays=[M.history_min,M.history_max,M.last_year,M.current_year];
@@ -98,7 +103,7 @@
         const inactiveRuns=statusRuns(M.current_year_status||[]).filter(run=>run[2]==='inactive_stage'),activePeriodText=(M.active_periods||[]).map(p=>`${p.start}—${p.end}`).join('、');
         const periodText=periods=>(periods||[]).map(p=>`${p.start}—${p.end}`).join('、');
         const stageWeightText=M.stage_weight_note||(M.display_role==='continuous_three_phase_temperature_factor_score'?`全生长期连续计分；主要权重时段：${periodText(M.primary_weight_periods)}；其余时段以 ${fmt(M.secondary_weight,1)} 暂定次要权重纳入综合分。权重未校准。`:'');
-        const title=el.dataset.chartTitle||M.label,unitText=`单位：${M.unit||'暂无'} · ${M.value_semantics||M.window||''}`,inactiveText=inactiveRuns.length?`模型启用时段：${activePeriodText||'按作物阶段启用'}；灰色空白＝该因子在该阶段不参与评分，不是气象原始数据缺失。完整气象值请看“天气因子原始数据”。`:'',blankText=[M.chart_display_note,M.historical_band_note,M.blank_value_label||'空值按来源状态解释',stageWeightText,inactiveText].filter(Boolean).join(' ');let s=`<div class="chart-shell"><header class="chart-meta"><div class="chart-meta-row"><h3>${esc(title)}</h3><span class="chart-meta-unit">${esc(unitText)}</span></div><p class="chart-meta-note">${esc(blankText)}</p></header><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}历史季节性图">`;
+        const title=el.dataset.chartTitle||M.label,unitText=`单位：${M.unit||'暂无'} · ${M.value_semantics||M.window||''}`,inactiveText=inactiveRuns.length?`模型启用时段：${activePeriodText||'按作物阶段启用'}；灰色空白＝该因子在该阶段不参与评分，不是气象原始数据缺失。完整气象值请看“天气因子原始数据”。`:'',blankText=[M.chart_display_note,M.historical_band_note,M.blank_value_label||'空值按来源状态解释',stageWeightText,inactiveText,indiaJanuaryNote].filter(Boolean).join(' ');let s=`<div class="chart-shell"><header class="chart-meta"><div class="chart-meta-row"><h3>${esc(title)}</h3><span class="chart-meta-unit">${esc(unitText)}</span></div><p class="chart-meta-note">${esc(blankText)}</p></header><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}历史季节性图">`;
         let lx=2;const legend=(color,label,dash='')=>{s+=`<line x1="${lx}" y1="13" x2="${lx+16}" y2="13" stroke="${color}" stroke-width="2.4"${dash?' stroke-dasharray="5,4"':''}/><text x="${lx+20}" y="16.5" font-size="10.5" fill="#475569">${esc(label)}</text>`;lx+=24+label.length*11};
         if(inactiveRuns.length){inactiveRuns.forEach(run=>{const x0=X(run[0]),x1=X(run[1]);s+=`<rect x="${x0.toFixed(1)}" y="${padT}" width="${Math.max(1,x1-x0)}" height="${H-padT-padB}" fill="#94a3b8" fill-opacity=".13"/>`});legend('#94a3b8','灰色＝该阶段未启用','5,4')}
         const paths=bandPaths();if(paths.length){legend('#94a3b8','历史最大—最小带');paths.forEach(path=>{s+=`<path d="${path}" fill="#94a3b8" fill-opacity=".28" stroke="none"/>`})}

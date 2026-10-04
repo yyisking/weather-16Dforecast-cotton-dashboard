@@ -1283,6 +1283,49 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("M.historical_band_note", html)
         self.assertIn("confidence_display||a.confidence", html)
 
+    def test_india_january_note_requires_a_cropped_india_score_metric_with_january(self):
+        note = "次年1月仅南部棉区晚期采摘／作物结束阶段参与评分；不是全印度统一启用，也不是下一季。"
+        html = (ROOT / "index.html").read_text(encoding="utf-8")
+        self.assertIn(note, html)
+        self.assertIn("function indiaJanuaryScoreNote(regionId,metric)", html)
+        self.assertIn("regionId==='india'&&metric?.scale_type==='fixed_score_0_100'&&hasJanuary", html)
+        self.assertIn("String(key).startsWith('01-')", html)
+        self.assertIn("M=chartMetricForDisplay(M);\n        const indiaJanuaryNote=indiaJanuaryScoreNote(rid,M);", html)
+        self.assertIn("inactiveText,indiaJanuaryNote].filter(Boolean).join(' ')", html)
+
+        def displayed_metric(metric):
+            keys = metric["day_keys"]
+            start, end = metric.get("chart_display_start"), metric.get("chart_display_end")
+            if not start or not end:
+                return metric
+            first, last = keys.index(start), keys.index(end)
+            if last < first:
+                return metric
+            indexes = range(first, last + 1)
+            return {
+                **metric,
+                "day_keys": [keys[index] for index in indexes],
+            }
+
+        def eligible(region_id, metric):
+            shown = displayed_metric(metric)
+            return (
+                region_id == "india"
+                and shown.get("scale_type") == "fixed_score_0_100"
+                and any(key.startswith("01-") for key in shown.get("day_keys", []))
+            )
+
+        india_score = self.payload["seasonal"]["india"]["metrics"]["score"]
+        self.assertTrue(eligible("india", india_score))
+        southern_score = self.payload["subregion_seasonal"]["india"]["AP"]["metrics"]["score"]
+        north_central_score = self.payload["subregion_seasonal"]["india"]["MH"]["metrics"]["score"]
+        self.assertTrue(eligible("india", southern_score))
+        self.assertFalse(eligible("india", north_central_score))
+        india_raw = self.payload["seasonal"]["india"]["raw_metrics"]["tmax_14d_mean"]
+        self.assertFalse(eligible("india", india_raw))
+        brazil_score = self.payload["seasonal"]["brazil"]["metrics"]["root_zone_dryness"]
+        self.assertFalse(eligible("brazil", brazil_score))
+
     def test_every_score_chart_hides_structurally_inactive_days_but_keeps_real_gaps(self):
         def display_indexes(metric):
             keys = metric["day_keys"]
