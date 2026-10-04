@@ -1369,6 +1369,8 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("supplyTable.insertAdjacentElement('beforebegin',supplyAnchor)", html)
         self.assertIn("classList.add('supply-table-section')", html)
         self.assertIn("<details class=\"production-weighted-details\"><summary>产量加权详情</summary>", html)
+        self.assertIn("当地完整日；其他${currentRegionCount}区已更新至", html)
+        self.assertIn("<span>最新地区日</span>", html)
         details_markup = re.search(r'<details class="production-weighted-details">(.*?)</details>', html, flags=re.DOTALL)
         self.assertIsNotNone(details_markup)
         self.assertIn("<table>", details_markup.group(1))
