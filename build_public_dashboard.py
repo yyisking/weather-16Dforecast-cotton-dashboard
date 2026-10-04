@@ -174,7 +174,7 @@ SEASON_WINDOWS = {
     "China": ("04-01", "11-30", "新疆 04-01—11-30", "verified_stage_scoring_window"),
     "United States": ("02-01", "11-30", "美国全国既有网络 02-01—11-30", "national_network_union_display_window"),
     "Brazil": ("01-01", "12-31", "巴西全国既有网络全年多作制联合窗口", "national_network_union_display_window"),
-    "India": ("01-01", "12-31", "印度全国既有网络 05—12 月＋次年 1 月联合窗口", "national_network_union_display_window"),
+    "India": ("05-01", "01-31", "印度全国既有网络 05 月—次年 1 月连续作季窗口", "national_network_cross_year_display_window"),
 }
 CENTRAL_WINDOW = ("03-01", "10-31", "03-01—10-31（页面代理窗口；未核实当地作季）",
                   "display_window_proxy_not_verified_local_stage_calendar")
@@ -195,10 +195,10 @@ CHART_DISPLAY_WINDOWS = {
     ("Brazil", "low_temperature"): (("01-01", "10-31"),),
     ("Brazil", "high_vpd"): (("01-01", "06-30"), ("09-01", "12-31")),
     ("Brazil", "low_solar_radiation"): (("01-01", "08-31"), ("10-01", "12-31")),
-    ("India", "score"): (("05-01", "12-31"), ("01-01", "01-31")),
-    ("India", "root_zone_dryness"): (("05-01", "12-31"), ("01-01", "01-31")),
-    ("India", "hot_dry_compound"): (("05-01", "12-31"), ("01-01", "01-31")),
-    ("India", "excess_rain_waterlogging"): (("05-01", "12-31"), ("01-01", "01-31")),
+    ("India", "score"): (("05-01", "01-31"),),
+    ("India", "root_zone_dryness"): (("05-01", "01-31"),),
+    ("India", "hot_dry_compound"): (("05-01", "01-31"),),
+    ("India", "excess_rain_waterlogging"): (("05-01", "01-31"),),
     ("Australia", "low_temperature"): (("09-01", "04-30"),),
     ("Australia", "high_heat"): (("09-01", "04-30"),),
     ("Australia", "excess_rain"): (("09-01", "10-31"), ("03-01", "04-30")),
@@ -572,20 +572,23 @@ def build_seasonal(geography: str) -> dict:
     if not years:
         return {"status": "gap", "source": str(path), "metrics": {}}
 
-    current_year = max(years)
-    prior_year = current_year - 1
     source_max_date = max(source_dates)
+    cross_year = geography == "India"
+    season_start_month = 5 if cross_year else 1
+    current_year = source_max_date.year if source_max_date.month >= season_start_month else source_max_date.year - 1
+    prior_year = current_year - 1
     metrics = {}
     for metric in metric_fields:
         year_map = by_metric_year_day.get(metric, {})
 
         def year_trace(year: int) -> list[float | None]:
-            return [
-                (sum(year_map.get(year, {}).get(key, [])) / len(year_map[year][key]))
-                if year_map.get(year, {}).get(key)
-                else None
-                for key in all_keys
-            ]
+            values = []
+            for key in all_keys:
+                month = int(key[:2])
+                source_year = year + 1 if cross_year and month < season_start_month else year
+                samples = year_map.get(source_year, {}).get(key, [])
+                values.append(sum(samples) / len(samples) if samples else None)
+            return values
 
         current = year_trace(current_year)
         prior = year_trace(prior_year)
@@ -598,7 +601,8 @@ def build_seasonal(geography: str) -> dict:
                 current_status.append("inactive_stage")
                 prior_status.append("inactive_stage")
                 continue
-            current_date = date(current_year, month, day)
+            actual_year = current_year + 1 if cross_year and month < season_start_month else current_year
+            current_date = date(actual_year, month, day)
             if current_date > source_max_date:
                 current_status.append("future")
             elif current[index] is None:
@@ -608,14 +612,11 @@ def build_seasonal(geography: str) -> dict:
             prior_status.append("available" if prior[index] is not None else "source_gap")
         current_status = _crop(current_status, all_keys, keys)
         prior_status = _crop(prior_status, all_keys, keys)
-        historical_years = sorted(year for year in year_map if year not in {current_year, prior_year})
+        historical_years = list(range(min(years), prior_year))
+        historical_traces = {year: year_trace(year) for year in historical_years}
         hist_min, hist_max = [], []
-        for key in all_keys:
-            values = [
-                sum(year_map[year][key]) / len(year_map[year][key])
-                for year in historical_years
-                if year_map[year].get(key)
-            ]
+        for index, _key in enumerate(all_keys):
+            values = [historical_traces[year][index] for year in historical_years if historical_traces[year][index] is not None]
             hist_min.append(min(values) if values else None)
             hist_max.append(max(values) if values else None)
         if not any(value is not None for value in current + prior + hist_min + hist_max):
@@ -628,8 +629,8 @@ def build_seasonal(geography: str) -> dict:
                 "history_max": _crop(hist_max, all_keys, keys),
                 "last_year": _crop(prior, all_keys, keys),
                 "current_year": _crop(current, all_keys, keys),
-                "last_year_label": str(prior_year),
-                "current_year_label": str(current_year),
+                "last_year_label": f"{prior_year}/{str(prior_year + 1)[-2:]}" if cross_year else str(prior_year),
+                "current_year_label": f"{current_year}/{str(current_year + 1)[-2:]}" if cross_year else str(current_year),
                 "history_years": historical_years,
                 "history_year_count": len(historical_years),
                 "status": "available" if any(value is not None for value in current) else "historical_only",
@@ -639,6 +640,8 @@ def build_seasonal(geography: str) -> dict:
                 "source_file_max_date": source_max_date.isoformat(),
                 "status_counts": {"last_year": _status_counts(prior_status), "current_year": _status_counts(current_status)},
                 "source_gap_count": prior_status.count("source_gap") + current_status.count("source_gap"),
+                "cross_year_axis": cross_year,
+                "season_start_month": season_start_month,
             }
         )
         if geography == "China" and metric in {"low_temperature", "high_heat"}:
@@ -682,14 +685,14 @@ def build_seasonal(geography: str) -> dict:
     return {
         "status": "available" if metrics else "gap",
         "source": str(path.relative_to(COTTON_ROOT)),
-        "axis": "month_day",
-        "current_year": current_year,
-        "last_year": prior_year,
+        "axis": "cross_year_month_day" if cross_year else "month_day",
+        "current_year": f"{current_year}/{str(current_year + 1)[-2:]}" if cross_year else current_year,
+        "last_year": f"{prior_year}/{str(prior_year + 1)[-2:]}" if cross_year else prior_year,
         "display_window_start": window_start,
         "display_window_end": window_end,
         "display_window_label": window_label,
         "display_window_status": window_status,
-        "cross_year_axis": False,
+        "cross_year_axis": cross_year,
         "source_file_max_date": source_max_date.isoformat(),
         "source_gap_count": sum(metric.get("source_gap_count", 0) for metric in metrics.values()),
         "metrics": metrics,
@@ -999,14 +1002,17 @@ def _raw_meta_v05(label: str, unit: str, metric_id: str, solar_status: str) -> d
     }
 
 
-def _raw_trace(values_by_date: dict[date, float | None], season_year: int, keys: list[str], cross_year: bool, cutoff: date | None) -> tuple[list[float | None], list[str]]:
+def _raw_trace(
+    values_by_date: dict[date, float | None], season_year: int, keys: list[str],
+    cross_year: bool, cutoff: date | None, season_start_month: int = 9,
+) -> tuple[list[float | None], list[str]]:
     values, statuses = [], []
     for key in keys:
         month, day = (int(part) for part in key.split("-"))
-        actual_year = season_year + 1 if cross_year and month < 9 else season_year
+        actual_year = season_year + 1 if cross_year and month < season_start_month else season_year
         actual = date(actual_year, month, day)
         value = values_by_date.get(actual)
-        if cutoff is not None and season_year == 2026 and actual > cutoff:
+        if cutoff is not None and actual > cutoff:
             values.append(None)
             statuses.append("future")
         elif value is None:
@@ -1037,11 +1043,22 @@ def _raw_region_old(geography: str) -> dict:
             aggregated[metric_id][day], _coverage = _spatial_raw(config, point_values, metric_id)
     window_start, window_end, window_label, window_status = config["window"]
     keys = _window_keys(window_start, window_end)
+    cross_year = geography == "India"
+    season_start_month = 5 if cross_year else 1
+    current_season_year = cutoff.year if cutoff.month >= season_start_month else cutoff.year - 1
+    prior_season_year = current_season_year - 1
     metrics = {}
     for metric_id, (label, unit, _source_metric, _mode) in RAW_LABELS.items():
-        current, current_status = _raw_trace(aggregated[metric_id], 2026, keys, False, cutoff)
-        prior, prior_status = _raw_trace(aggregated[metric_id], 2025, keys, False, None)
-        history = {year: _raw_trace(aggregated[metric_id], year, keys, False, None)[0] for year in config["history_years"]}
+        current, current_status = _raw_trace(
+            aggregated[metric_id], current_season_year, keys, cross_year, cutoff, season_start_month
+        )
+        prior, prior_status = _raw_trace(
+            aggregated[metric_id], prior_season_year, keys, cross_year, None, season_start_month
+        )
+        history = {
+            year: _raw_trace(aggregated[metric_id], year, keys, cross_year, None, season_start_month)[0]
+            for year in config["history_years"]
+        }
         hist_min = [min((history[year][index] for year in config["history_years"] if history[year][index] is not None), default=None) for index in range(len(keys))]
         hist_max = [max((history[year][index] for year in config["history_years"] if history[year][index] is not None), default=None) for index in range(len(keys))]
         metric = _raw_meta_v05(label, unit, metric_id, config["solar_status"])
@@ -1050,7 +1067,9 @@ def _raw_region_old(geography: str) -> dict:
         cutoff_valid_count = sum(value is not None for value in cutoff_point_values.values())
         metric.update({
             "day_keys": keys, "history_min": hist_min, "history_max": hist_max,
-            "last_year": prior, "current_year": current, "last_year_label": "2025", "current_year_label": "2026",
+            "last_year": prior, "current_year": current,
+            "last_year_label": f"{prior_season_year}/{str(prior_season_year + 1)[-2:]}" if cross_year else str(prior_season_year),
+            "current_year_label": f"{current_season_year}/{str(current_season_year + 1)[-2:]}" if cross_year else str(current_season_year),
             "history_years": config["history_years"], "history_year_count": len(config["history_years"]),
             "status": "available" if any(value is not None for value in current) else "gap",
             "last_year_status": prior_status, "current_year_status": current_status,
@@ -1062,12 +1081,17 @@ def _raw_region_old(geography: str) -> dict:
             "valid_current_point_count": cutoff_valid_count,
             "current_spatial_coverage": cutoff_coverage,
             "spatial_coverage_gate": 0.60,
+            "cross_year_axis": cross_year,
+            "season_start_month": season_start_month,
         })
         metrics[metric_id] = metric
     return {
-        "status": "available", "source": str(config["path"].relative_to(COTTON_ROOT)), "axis": "month_day",
-        "current_year": 2026, "last_year": 2025, "display_window_start": window_start, "display_window_end": window_end,
-        "display_window_label": window_label, "display_window_status": window_status, "cross_year_axis": False,
+        "status": "available", "source": str(config["path"].relative_to(COTTON_ROOT)),
+        "axis": "cross_year_month_day" if cross_year else "month_day",
+        "current_year": f"{current_season_year}/{str(current_season_year + 1)[-2:]}" if cross_year else current_season_year,
+        "last_year": f"{prior_season_year}/{str(prior_season_year + 1)[-2:]}" if cross_year else prior_season_year,
+        "display_window_start": window_start, "display_window_end": window_end,
+        "display_window_label": window_label, "display_window_status": window_status, "cross_year_axis": cross_year,
         "source_file_max_date": source_max.isoformat(), "display_cutoff_date": cutoff.isoformat(),
         "metrics": metrics, "solar_model_status": config["solar_status"],
     }
@@ -1762,12 +1786,15 @@ def _australia_raw_details(cutoff: date) -> dict[str, dict]:
     return {aoi: _raw_detail(records, (aoi,), cutoff) for aoi in records}
 
 
-def _season_dates(season_years: list[int] | range | tuple[int, ...], keys: list[str], cross_year: bool) -> list[date]:
+def _season_dates(
+    season_years: list[int] | range | tuple[int, ...], keys: list[str],
+    cross_year: bool, season_start_month: int = 9,
+) -> list[date]:
     days = []
     for season_year in season_years:
         for key in keys:
             month, day = (int(part) for part in key.split("-"))
-            actual_year = season_year + 1 if cross_year and month < 9 else season_year
+            actual_year = season_year + 1 if cross_year and month < season_start_month else season_year
             try:
                 days.append(date(actual_year, month, day))
             except ValueError:
@@ -1781,9 +1808,19 @@ def _subregion_metric(
     raw: bool,
 ) -> dict:
     """Turn one local daily series into the dashboard's common seasonal contract."""
-    current, current_status = _raw_trace(values_by_date, 2026, keys, cross_year, cutoff)
-    prior, prior_status = _raw_trace(values_by_date, 2025, keys, cross_year, None)
-    history = {year: _raw_trace(values_by_date, year, keys, cross_year, None)[0] for year in history_years}
+    season_start_month = 9 if geography == "Australia" else 5 if geography == "India" else 1
+    current_season_year = cutoff.year if cutoff.month >= season_start_month else cutoff.year - 1
+    prior_season_year = current_season_year - 1
+    current, current_status = _raw_trace(
+        values_by_date, current_season_year, keys, cross_year, cutoff, season_start_month
+    )
+    prior, prior_status = _raw_trace(
+        values_by_date, prior_season_year, keys, cross_year, None, season_start_month
+    )
+    history = {
+        year: _raw_trace(values_by_date, year, keys, cross_year, None, season_start_month)[0]
+        for year in history_years
+    }
     history_min = [min((history[year][index] for year in history_years if history[year][index] is not None), default=None)
                    for index in range(len(keys))]
     history_max = [max((history[year][index] for year in history_years if history[year][index] is not None), default=None)
@@ -1808,8 +1845,8 @@ def _subregion_metric(
     payload.update({
         "day_keys": keys, "history_min": tidy(history_min), "history_max": tidy(history_max),
         "last_year": tidy(prior), "current_year": tidy(current),
-        "last_year_label": "2025/26" if cross_year else "2025",
-        "current_year_label": "2026/27" if cross_year else "2026",
+        "last_year_label": f"{prior_season_year}/{str(prior_season_year + 1)[-2:]}" if cross_year else str(prior_season_year),
+        "current_year_label": f"{current_season_year}/{str(current_season_year + 1)[-2:]}" if cross_year else str(current_season_year),
         "history_years": history_years, "history_year_count": len(history_years),
         "status": "available" if any(value is not None for value in current + prior + history_min + history_max) else "gap",
         "last_year_status": prior_status, "current_year_status": current_status,
@@ -1818,6 +1855,8 @@ def _subregion_metric(
         "source_gap_count": prior_status.count("source_gap") + current_status.count("source_gap"),
         "status_counts": {"last_year": _status_counts(prior_status), "current_year": _status_counts(current_status)},
         "historical_band_note": "历史最大—最小带按该地区自身序列计算；不是国家曲线下放。",
+        "cross_year_axis": cross_year,
+        "season_start_month": season_start_month,
     })
     if not raw:
         if geography == "China" and metric_id == "spring_wind":
@@ -1852,8 +1891,8 @@ def _load_full_point_records(geography: str) -> tuple[dict[str, dict[date, dict[
 
 @lru_cache(maxsize=None)
 def _subregion_raw_seasonal(geography: str, cutoff: date) -> dict[str, dict[str, dict]]:
-    cross_year = geography == "Australia"
-    if cross_year:
+    cross_year = geography in {"Australia", "India"}
+    if geography == "Australia":
         records, _source_max = _load_australia_records()
         groups = {aoi: (aoi,) for aoi in records}
         keys = _window_keys(AUSTRALIA_WINDOW[0], AUSTRALIA_WINDOW[1])
@@ -1893,7 +1932,8 @@ def _subregion_factor_series(geography: str, cutoff: date) -> dict[str, dict[str
     """Recompute local score/factor daily series with each country's frozen model logic."""
     result: dict[str, dict[str, dict[date, float | None]]] = defaultdict(lambda: defaultdict(dict))
     keys = _window_keys(*(AUSTRALIA_WINDOW[:2] if geography == "Australia" else SEASON_WINDOWS[geography][:2]))
-    cross_year = geography == "Australia"
+    cross_year = geography in {"Australia", "India"}
+    season_start_month = 9 if geography == "Australia" else 5 if geography == "India" else 1
     if geography == "China":
         successor = _load_pipeline("China")
         base = successor._load_base()
@@ -1976,7 +2016,9 @@ def _subregion_factor_series(geography: str, cutoff: date) -> dict[str, dict[str
         for point_id, point in points.items():
             points_by_state[point["state"]].append(point_id)
         exposures = module.build_exposures(series)
-        for day in (day for day in _season_dates(range(2015, 2027), keys, False) if day <= source_max):
+        for day in (day for day in _season_dates(
+            range(2015, 2027), keys, cross_year, season_start_month
+        ) if day <= source_max):
             for state in module.REGIMES:
                 item = module.state_day_result(state, day, points_by_state, exposures)
                 result[state]["score"][day] = item["score"] if item else None
@@ -1995,7 +2037,9 @@ def _subregion_factor_series(geography: str, cutoff: date) -> dict[str, dict[str
                 if exposure is not None:
                     exposures[point][day] = exposure
         points_by_state = _point_groups(geography)
-        for day in (day for day in _season_dates(range(2015, 2027), keys, False) if day <= source_max):
+        for day in (day for day in _season_dates(
+            range(2015, 2027), keys, cross_year, season_start_month
+        ) if day <= source_max):
             for state, points in points_by_state.items():
                 regime = module.STATE_REGIME[state]
                 weights = module.REGIMES[regime]["weights"].get(day.month)
@@ -2015,7 +2059,7 @@ def _subregion_factor_series(geography: str, cutoff: date) -> dict[str, dict[str
     if geography == "Australia":
         module = _load_pipeline(geography)
         raw_points = module._load_inputs(COTTON_ROOT.parent)[0]
-        for day in _season_dates(range(1991, 2027), keys, True):
+        for day in _season_dates(range(1991, 2027), keys, True, season_start_month):
             if day.month not in module.MONTH_WEIGHTS:
                 continue
             for aoi in module.EXPECTED_AOIS:
@@ -2034,11 +2078,14 @@ def build_subregion_seasonal(regions: list[dict]) -> dict:
         region_id = REGION_META[geography]["id"]
         region = next(item for item in regions if item["id"] == region_id)
         cutoff = date.fromisoformat(region["date"][:10])
-        cross_year = geography == "Australia"
-        keys = _window_keys(*(AUSTRALIA_WINDOW[:2] if cross_year else SEASON_WINDOWS[geography][:2]))
-        history_years = list(range(1991, 2025)) if cross_year else list(range(2015, 2025))
+        cross_year = geography in {"Australia", "India"}
+        keys = _window_keys(*(AUSTRALIA_WINDOW[:2] if geography == "Australia" else SEASON_WINDOWS[geography][:2]))
+        history_years = list(range(1991, 2025)) if geography == "Australia" else list(range(2015, 2025))
         raw_metrics = _subregion_raw_seasonal(geography, cutoff)
         factor_series = _subregion_factor_series(geography, cutoff)
+        season_start_month = 9 if geography == "Australia" else 5 if geography == "India" else 1
+        current_season_year = cutoff.year if cutoff.month >= season_start_month else cutoff.year - 1
+        prior_season_year = current_season_year - 1
         output[region_id] = {}
         for detail in region["network_details"]:
             sub_id = detail["id"]
@@ -2056,8 +2103,10 @@ def build_subregion_seasonal(regions: list[dict]) -> dict:
                 "score_factor_chart_note": detail.get("factor_detail_note"),
                 "metrics": metrics, "raw_metrics": raw_metrics.get(source_id, {}),
                 "axis": "cross_year_month_day" if cross_year else "month_day",
-                "current_year": "2026/27" if cross_year else 2026,
-                "last_year": "2025/26" if cross_year else 2025,
+                "current_year": f"{current_season_year}/{str(current_season_year + 1)[-2:]}" if cross_year else current_season_year,
+                "last_year": f"{prior_season_year}/{str(prior_season_year + 1)[-2:]}" if cross_year else prior_season_year,
+                "cross_year_axis": cross_year,
+                "season_start_month": season_start_month,
             }
     return output
 

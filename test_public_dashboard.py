@@ -703,10 +703,37 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("点击异常度查看季节图", html)
         self.assertIn("天气异常度（14天滚动）", html)
 
-    def test_four_regular_region_axes_are_not_cross_year(self):
-        for region_id in ("china", "us", "brazil", "india"):
+    def test_calendar_and_cross_year_region_axes_are_explicit(self):
+        for region_id in ("china", "us", "brazil"):
             self.assertFalse(self.payload["seasonal"][region_id]["cross_year_axis"], region_id)
+        self.assertTrue(self.payload["seasonal"]["india"]["cross_year_axis"])
         self.assertTrue(self.payload["seasonal"]["australia"]["cross_year_axis"])
+
+    def test_india_cross_year_axis_maps_january_to_next_calendar_year(self):
+        metric = self.payload["seasonal"]["india"]["metrics"]["score"]
+        self.assertEqual((metric["day_keys"][0], metric["day_keys"][-1]), ("05-01", "01-31"))
+        self.assertEqual((metric["current_year_label"], metric["last_year_label"]), ("2026/27", "2025/26"))
+        january_index = metric["day_keys"].index("01-15")
+        self.assertIsNone(metric["current_year"][january_index])
+        self.assertEqual(metric["current_year_status"][january_index], "future")
+        with builder.NATIONAL_DAILY_PATHS["India"].open(encoding="utf-8", newline="") as handle:
+            source = {
+                row["date"]: float(row["theoretical_weather_stress_index"])
+                for row in csv.DictReader(handle)
+                if row.get("theoretical_weather_stress_index") not in (None, "", "null", "None")
+            }
+        self.assertEqual(metric["last_year"][january_index], source["2026-01-15"])
+
+        for bundle in self.payload["subregion_seasonal"]["india"].values():
+            self.assertTrue(bundle["cross_year_axis"])
+            self.assertEqual((bundle["current_year"], bundle["last_year"]), ("2026/27", "2025/26"))
+            for namespace in ("metrics", "raw_metrics"):
+                for sub_metric in bundle[namespace].values():
+                    self.assertEqual((sub_metric["day_keys"][0], sub_metric["day_keys"][-1]), ("05-01", "01-31"))
+                    self.assertEqual((sub_metric["current_year_label"], sub_metric["last_year_label"]), ("2026/27", "2025/26"))
+                    sub_january_index = sub_metric["day_keys"].index("01-15")
+                    self.assertIsNone(sub_metric["current_year"][sub_january_index])
+                    self.assertEqual(sub_metric["current_year_status"][sub_january_index], "future")
 
     def test_score_and_raw_metric_namespaces_are_separate_and_frozen(self):
         expected = {
@@ -786,7 +813,7 @@ class PublicDashboardTest(unittest.TestCase):
                     for index, key in enumerate(keys):
                         month, day = (int(part) for part in key.split("-"))
                         source_year = year_start
-                        if geography == "Australia" and month < 9:
+                        if (geography == "Australia" and month < 9) or (geography == "India" and month < 5):
                             source_year += 1
                         source_values = by_year_key.get((metric, source_year, key), [])
                         expected_value = sum(source_values) / len(source_values) if source_values else None
@@ -1077,7 +1104,7 @@ class PublicDashboardTest(unittest.TestCase):
             "temperature_2m_max": "14日平均日最高温",
             "temperature_2m_min": "14日平均日最低温",
             "precipitation_sum": "TP累计降水量（14天累计滚动值）",
-            "shortwave_radiation_sum": "SWd日短波辐射（14日移动平均）",
+            "shortwave_radiation_sum": "SW累计短波辐射（14天累计滚动值）",
             "et0_fao_evapotranspiration": "14日累计参考蒸散",
             "vapour_pressure_deficit_max": "14日平均最大水汽压亏缺（VPD）",
         }
@@ -1099,6 +1126,9 @@ class PublicDashboardTest(unittest.TestCase):
             self.assertIn(label, html)
         self.assertIn("dailyLabel=(m&&m.label)||centralDailyVariableLabels[v]", html)
         self.assertIn("data-chart-title", html)
+        self.assertIn("<span>当前 ${escapeHtml(a[v+'_current'])} ${escapeHtml(unit)}</span>", html)
+        self.assertIn("温度和VPD取14日平均，降水、短波辐射和参考蒸散取14日累计", html)
+        self.assertIn("${nextYear?'次年':''}${month}月", html)
         self.assertNotIn("precipitation_sum:'14日降水'", html)
         self.assertNotIn("shortwave_radiation_sum:'14日短波辐射'", html)
         self.assertNotIn("et0_fao_evapotranspiration:'14日参考蒸散'", html)
@@ -1231,7 +1261,7 @@ class PublicDashboardTest(unittest.TestCase):
         expected = {
             "us": {"root_zone_dryness": (("03-01", "09-30"),), "high_heat": (("04-01", "08-31"),), "low_temperature": (("02-01", "05-31"), ("07-01", "07-31"), ("09-01", "11-30")), "establishment_excess_rain": (("02-01", "06-30"),), "harvest_rain": (("07-01", "11-30"),)},
             "brazil": {"harvest_rain": (("02-01", "09-30"),), "root_zone_dryness": (("01-01", "06-30"), ("09-01", "12-31")), "high_temperature": (("01-01", "06-30"), ("09-01", "12-31")), "low_temperature": (("01-01", "10-31"),), "high_vpd": (("01-01", "06-30"), ("09-01", "12-31")), "low_solar_radiation": (("01-01", "08-31"), ("10-01", "12-31"))},
-            "india": {"score": (("05-01", "12-31"), ("01-01", "01-31")), "root_zone_dryness": (("05-01", "12-31"), ("01-01", "01-31")), "hot_dry_compound": (("05-01", "12-31"), ("01-01", "01-31")), "excess_rain_waterlogging": (("05-01", "12-31"), ("01-01", "01-31"))},
+            "india": {"score": (("05-01", "01-31"),), "root_zone_dryness": (("05-01", "01-31"),), "hot_dry_compound": (("05-01", "01-31"),), "excess_rain_waterlogging": (("05-01", "01-31"),)},
             "australia": {"low_temperature": (("09-01", "04-30"),), "high_heat": (("09-01", "04-30"),), "excess_rain": (("09-01", "10-31"), ("03-01", "04-30")), "high_vpd": (("11-01", "02-28"),), "low_solar": (("09-01", "04-30"),)},
         }
         for region_id, metrics in expected.items():
