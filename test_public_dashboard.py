@@ -1429,8 +1429,8 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertLessEqual(composite["current_score"], 100.0)
 
         html = (ROOT / "index.html").read_text(encoding="utf-8")
-        self.assertIn("<title>棉花供需与天气胁迫看板 V0.7</title>", html)
-        self.assertIn("<h1>棉花供需与天气胁迫看板 V0.7</h1>", html)
+        self.assertIn("<title>棉花供需与天气胁迫看板 V1.0</title>", html)
+        self.assertIn("<h1>棉花供需与天气胁迫看板 V1.0</h1>", html)
         self.assertIn('"dashboard_id": "cotton_public_supply_weather_dashboard_v0_7"', json.dumps(self.payload, ensure_ascii=False))
         self.assertIn("${r.name} · 国家／新疆整体天气因子原始数据", html)
         self.assertIn("${r.name} · 国家／新疆整体模型单因子评分", html)
@@ -1604,9 +1604,9 @@ class PublicDashboardTest(unittest.TestCase):
 
     def test_page_and_publish_files_are_synced_and_safe(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
-        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "分区域查看", "查看区域详情", "当前国家／地区", "国家内部产区", "选择地区查看具体因子", "当前所选地区", "展开完整州／邦／AOI 表格", "全球棉花五大种植区域天气胁迫总评分（产区产量加权）", "产量加权详情", "共同截止", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V0.7", "USDA供需截止", "天气因子原始数据", "模型天气胁迫单因子评分", "Tmax日最高温度（14天移动平均）", "Tmin日最低温度（14天移动平均）", "TP累计降水量（14天累计滚动值）", "SWd日短波辐射（14日移动平均）", "MJ/m²/日", "天气原值与理论分数均未换算为 USDA 产量", "太阳辐射模型状态："):
+        for phrase in ("全球供需锚点", "五个棉区天气胁迫", "分区域查看", "查看区域详情", "当前国家／地区", "国家内部产区", "选择地区查看具体因子", "当前所选地区", "展开完整州／邦／AOI 表格", "全球棉花五大种植区域天气胁迫总评分（产区产量加权）", "产量加权详情", "共同截止", "中亚五国天气观察", "10 个 AOI", "天气异常度 10/10 可用", "棉花胁迫分 0/10 可用", "官方供需明细", "暂无可用值", "历史季节性图", "attachCharts", "澳大利亚 USDA 官方供需变化已接入", "USDA产量变化", "USDA期末库存变化", "国内消费变化率", "看板 V1.0", "USDA供需截止", "天气因子原始数据", "模型天气胁迫单因子评分", "Tmax日最高温度（14天移动平均）", "Tmin日最低温度（14天移动平均）", "TP累计降水量（14天累计滚动值）", "SWd日短波辐射（14日移动平均）", "MJ/m²/日", "天气原值与理论分数均未换算为 USDA 产量", "太阳辐射模型状态："):
             self.assertIn(phrase, html)
-        self.assertIn("<title>棉花供需与天气胁迫看板 V0.7</title>", html)
+        self.assertIn("<title>棉花供需与天气胁迫看板 V1.0</title>", html)
         self.assertNotIn("看板 V0.5", html)
         self.assertIn("正式 global_numeric_weather_score 仍未生成；上方五区产量加权分仅为展示合成，未执行天气到供给数量的换算。", html)
         self.assertIn("M.solar_display_status", html)
