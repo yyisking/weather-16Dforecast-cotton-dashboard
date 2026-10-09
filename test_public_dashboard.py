@@ -260,6 +260,44 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertEqual(factors["low_temperature"]["score"], self.au_latest["low_temperature_score"])
         self.assertEqual(factors["low_solar"]["score"], self.au_latest["low_solar_score"])
 
+    def test_current_source_badges_rebuild_from_daily_cell_lineage(self):
+        manifest = builder.latest_weather_manifest()
+        self.assertEqual(manifest["status"], "success")
+        by_code = {row["region"]: row for row in manifest["regions"]}
+        for region in self.payload["regions"][:4]:
+            code = {"china": "xj", "us": "us", "brazil": "br", "india": "in"}[region["id"]]
+            evidence = by_code[code]
+            self.assertEqual(evidence["latest_date"], region["date"])
+            latest = [row for row in evidence["lineage"] if row["date"] == region["date"]]
+            self.assertEqual(len({row["point_id"] for row in latest}), evidence["point_count"])
+            classes = {source for row in latest for source in row["field_sources"].values()}
+            expected = (
+                "当日含预报衔接（历史天气再分析优先）"
+                if "forecast_bridge" in classes else "当日仅历史天气再分析"
+            )
+            self.assertEqual(region["source_mode"], expected)
+            self.assertEqual(region["source_lineage_run_id"], manifest["run_id"])
+        self.assertNotEqual(builder.source_mode({"observed_only": True}), "仅实况")
+
+    def test_current_source_badges_fail_closed_on_missing_or_stale_lineage(self):
+        original = [{"id": "us", "date": "2026-10-09", "source_mode": "当日来源待逐行核验"}]
+        archive = {"status": "success", "run_id": "fixture", "regions": [{
+            "region": "us", "latest_date": "2026-10-09", "point_count": 1,
+            "lineage": [{"point_id": "p1", "date": "2026-10-09", "field_sources": {"tmax": "archive_reanalysis"}}],
+        }]}
+        for changed in (
+            {**archive, "status": "download_gap"},
+            {**archive, "regions": [{**archive["regions"][0], "latest_date": "2026-10-08"}]},
+            {**archive, "regions": [{**archive["regions"][0], "lineage": []}]},
+            {**archive, "regions": [{**archive["regions"][0], "lineage": [{"point_id": "p1", "date": "2026-10-09", "field_sources": {"tmax": "unknown"}}]}]},
+        ):
+            rows = [dict(original[0])]
+            builder.current_source_modes(rows, changed)
+            self.assertEqual(rows, original)
+        rows = [dict(original[0])]
+        builder.current_source_modes(rows, archive)
+        self.assertEqual(rows[0]["source_mode"], "当日仅历史天气再分析")
+
     def test_existing_region_scores_and_null_factors_are_preserved(self):
         for region in self.payload["regions"][:4]:
             path = builder.NATIONAL_LATEST_PATHS.get(region["geography"], builder.REGION_PATHS[region["geography"]])

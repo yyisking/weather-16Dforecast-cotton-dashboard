@@ -374,10 +374,50 @@ def factor_value(raw: dict, field: str):
 
 def source_mode(raw: dict) -> str:
     if raw.get("observed_only") is True:
-        return "仅实况"
+        # Legacy national builders do not inspect the daily per-cell lineage.
+        # Their static flag cannot establish the source of a refreshed day.
+        return "当日来源待逐行核验"
     if raw.get("forecast_included") is True:
         return "实况＋预报"
     return "混合来源；逐行来源暂不可分"
+
+
+def current_source_modes(regions: list[dict], manifest: dict) -> None:
+    """Label current dates from the downloader's actual per-cell selection."""
+    if manifest.get("status") != "success":
+        return
+    by_code = {item.get("region"): item for item in manifest.get("regions", [])}
+    for region in regions:
+        code = {"china": "xj", "us": "us", "brazil": "br", "india": "in"}.get(region["id"])
+        if code is None:
+            continue  # Australia overlay has its own explicit forecast metadata.
+        item = by_code.get(code) or {}
+        if item.get("latest_date") != region.get("date"):
+            continue
+        latest_rows = [row for row in item.get("lineage", []) if row.get("date") == region["date"]]
+        if len({row.get("point_id") for row in latest_rows}) != item.get("point_count"):
+            continue
+        classes = {source for row in latest_rows for source in (row.get("field_sources") or {}).values()}
+        if not classes or not classes <= {"archive_reanalysis", "forecast_bridge"}:
+            continue
+        if any(not row.get("field_sources") for row in latest_rows):
+            continue
+        region["source_mode"] = (
+            "当日含预报衔接（历史天气再分析优先）"
+            if "forecast_bridge" in classes else "当日仅历史天气再分析"
+        )
+        region["source_lineage_run_id"] = manifest.get("run_id")
+
+
+def latest_weather_manifest() -> dict:
+    run_dir = COTTON_ROOT / "automation/runs"
+    paths = sorted(run_dir.glob("????????T??????Z.json"))
+    if not paths:
+        return {}
+    try:
+        return read_json(paths[-1])
+    except (OSError, ValueError):
+        return {}
 
 
 def _calendar_keys() -> list[str]:
@@ -2579,6 +2619,7 @@ def build() -> dict:
     region_geographies = ("China", "United States", "Brazil", "India")
     regions = [build_region(geo, row_by_geo[geo]) for geo in region_geographies]
     regions.append(build_australia_region(row_by_geo["Australia"]))
+    current_source_modes(regions, latest_weather_manifest())
     seasonal = {REGION_META[geo]["id"]: build_seasonal(geo) for geo in region_geographies}
     seasonal["australia"] = build_australia_seasonal()
     raw_weather = build_raw_weather()
