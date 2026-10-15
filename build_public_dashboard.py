@@ -8,6 +8,7 @@ import csv
 import hashlib
 import importlib.util
 import math
+import re
 import sys
 from functools import lru_cache
 from collections import defaultdict
@@ -411,7 +412,8 @@ def current_source_modes(regions: list[dict], manifest: dict) -> None:
 
 def latest_weather_manifest() -> dict:
     run_dir = COTTON_ROOT / "automation/runs"
-    paths = sorted(run_dir.glob("????????T??????Z.json"))
+    paths = sorted(path for path in run_dir.glob("????????T??????Z*.json")
+                   if re.fullmatch(r"\d{8}T\d{6}Z(?:_[A-Za-z0-9_-]+)?\.json", path.name))
     if not paths:
         return {}
     try:

@@ -280,6 +280,23 @@ class PublicDashboardTest(unittest.TestCase):
             self.assertEqual(region["source_lineage_run_id"], manifest["run_id"])
         self.assertNotEqual(builder.source_mode({"observed_only": True}), "仅实况")
 
+    def test_latest_manifest_recognizes_recovery_run_without_ignoring_failures(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory(prefix=".revision_guard_tmp_manifest_", dir=ROOT) as temp_dir:
+            cotton = Path(temp_dir)
+            runs = cotton / "automation" / "runs"
+            runs.mkdir(parents=True)
+            standard = {"run_id": "20261014T003005Z", "status": "success"}
+            recovery = {"run_id": "20261015T020000Z_recovery", "status": "success"}
+            for item in (standard, recovery):
+                (runs / (item["run_id"] + ".json")).write_text(json.dumps(item), encoding="utf-8")
+            (runs / "20990101T000000Z.invalid.json").write_text("not-json", encoding="utf-8")
+            with patch.object(builder, "COTTON_ROOT", cotton):
+                self.assertEqual(builder.latest_weather_manifest(), recovery)
+                failed = {"run_id": "20261016T003005Z", "status": "download_gap"}
+                (runs / (failed["run_id"] + ".json")).write_text(json.dumps(failed), encoding="utf-8")
+                self.assertEqual(builder.latest_weather_manifest(), failed)
+
     def test_current_source_badges_fail_closed_on_missing_or_stale_lineage(self):
         original = [{"id": "us", "date": "2026-10-09", "source_mode": "当日来源待逐行核验"}]
         archive = {"status": "success", "run_id": "fixture", "regions": [{
