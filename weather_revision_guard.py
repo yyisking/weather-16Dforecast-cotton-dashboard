@@ -209,6 +209,10 @@ def verify_frozen_revisions(
         _doc, responses = _manifest_responses(manifest_path, automation_root)
         candidates.extend(responses)
     candidates.sort(key=lambda item: item[0])
+    candidates_by_point_day = {}
+    for item in candidates:
+        for day in item[3]["daily"]["time"]:
+            candidates_by_point_day.setdefault((item[2], day), []).append(item)
 
     result: dict[str, Any] = {"regions": {}, "revision_count": 0, "baseline_manifest": str(baseline_manifest)}
     for geography, config in configs.items():
@@ -257,10 +261,8 @@ def verify_frozen_revisions(
                 raise RevisionEvidenceError(f"baseline point/date is missing from active CSV: {geography}/{point_id}/{raw_day}")
             for field, (_api, _unit) in FIELD_API.items():
                 old_value, new_value = _finite(base_row.get(field)), _finite(active_row.get(field))
-                if old_value == new_value:
-                    continue
                 eligible = []
-                for retrieved, region, src_point, payload, citation, evidence in candidates:
+                for retrieved, region, src_point, payload, citation, evidence in candidates_by_point_day.get((point_id, raw_day), []):
                     if src_point != point_id:
                         continue
                     base_entry = baseline_by_region_point.get((region, point_id))
@@ -283,12 +285,19 @@ def verify_frozen_revisions(
                     source_value = _finite(payload["daily"][api][ix])
                     eligible.append((retrieved, citation, source_value))
                 if not eligible:
+                    if old_value == new_value:
+                        continue
                     raise RevisionEvidenceError(f"active value lacks exact later Archive evidence: {geography}/{point_id}/{raw_day}/{field}")
                 retrieved, citation, source_value = max(eligible, key=lambda item: item[0])
                 if source_value is None:
+                    if old_value == new_value:
+                        # A missing later value does not erase the frozen value.
+                        continue
                     raise RevisionEvidenceError(f"latest Archive value is null for changed active cell: {geography}/{point_id}/{raw_day}/{field}")
                 if new_value is None or source_value != new_value:
                     raise RevisionEvidenceError(f"active value is not the latest Archive value: {geography}/{point_id}/{raw_day}/{field}")
+                if old_value == new_value:
+                    continue
                 revised.append({"point_id": point_id, "date": raw_day, "field": field, "baseline": old_value, "active": source_value, "retrieved_at_utc": retrieved, "source": citation})
         result["regions"][geography] = {
             "original_active_semantic_sha256": original_hash,

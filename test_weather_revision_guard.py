@@ -158,6 +158,11 @@ class WeatherRevisionGuardTest(unittest.TestCase):
         with self.assertRaises(RevisionEvidenceError):
             self._verify()
 
+    def test_reverting_to_frozen_baseline_cannot_bypass_newer_archive_value(self):
+        self._write_csv([{"point_id": "p1", "date": "2026-09-29", "tmax": "30", "tmin": "10", "precip": "1", "sw_rad": "20"}])
+        with self.assertRaisesRegex(RevisionEvidenceError, "not the latest"):
+            self._verify()
+
     def test_tampered_archive_sha_is_rejected(self):
         raw = next((self.automation / "raw" / "20261014T003005Z").rglob("archive_reanalysis.json"))
         raw.write_text(raw.read_text(encoding="utf-8") + " ", encoding="utf-8")
