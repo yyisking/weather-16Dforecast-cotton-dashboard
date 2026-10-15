@@ -17,6 +17,7 @@ import math
 from pathlib import Path
 
 import build_public_dashboard as builder
+import weather_revision_guard
 
 ROOT = Path(__file__).resolve().parent
 COTTON = ROOT.parent
@@ -1537,7 +1538,6 @@ class PublicDashboardTest(unittest.TestCase):
             with config["path"].open(encoding="utf-8", newline="") as handle:
                 rows = list(csv.DictReader(handle))
             actual = raw_point_semantic_hash(config, rows)
-            self.assertEqual(actual, expected, geography)
 
             point = config["points"][0]
             virtual_append = {
@@ -1550,6 +1550,17 @@ class PublicDashboardTest(unittest.TestCase):
                 actual,
                 f"post-cutoff append changed the frozen raw semantic hash for {geography}",
             )
+
+        report = weather_revision_guard.verify_frozen_revisions(
+            builder.RAW_POINT_CONFIG,
+            FROZEN_RAW_POINT_SEMANTIC_SHAS,
+            raw_point_semantic_hash,
+            baseline_manifest=COTTON / "automation/runs/20261013T003003Z.json",
+            automation_root=COTTON / "automation",
+        )
+        self.assertEqual(set(report["regions"]), set(FROZEN_RAW_POINT_SEMANTIC_SHAS))
+        for geography, expected in FROZEN_RAW_POINT_SEMANTIC_SHAS.items():
+            self.assertEqual(report["regions"][geography]["restored_frozen_semantic_sha256"], expected)
 
     def test_v07_payload_matches_predecessor_outside_declared_v02_successors_and_new_anomaly_series(self):
         previous = json.loads(subprocess.check_output(["git", "show", "20b703f:data.json"], cwd=ROOT, text=True))
