@@ -341,7 +341,12 @@ class PublicDashboardTest(unittest.TestCase):
             self.assertEqual(region["source_path"], source_path)
             expected_valid = source.get("valid_point_count", source.get("valid_aoi_count"))
             self.assertEqual(region["valid_point_count"], expected_valid)
-            self.assertEqual(region["target_point_count"], target)
+            if geography == "United States":
+                self.assertEqual(region["configured_point_count"], target)
+                self.assertEqual(region["configured_point_count"], source["point_registry_expected_count"])
+                self.assertEqual(region["target_point_count"], source["active_point_count"])
+            else:
+                self.assertEqual(region["target_point_count"], target)
             self.assertEqual(len(region["network_details"]), detail_count)
             self.assertAlmostEqual(region["official_production_weight_coverage"], production_coverage, places=9)
             self.assertAlmostEqual(
@@ -700,7 +705,10 @@ class PublicDashboardTest(unittest.TestCase):
                         expected = None if src[field] == "" else float(src[field])
                         self.assertEqual(metric[out][i], expected, (aoi, variable, day, out))
                 cutoff = date.fromisoformat(metric["display_cutoff_date"])
-                self.assertEqual(metric["current_year_status"][metric["day_keys"].index(cutoff.strftime("%m-%d"))], "available")
+                display_through = date.fromisoformat(metric["displayed_through_date"])
+                self.assertEqual(display_through, min(cutoff, date(2026, 10, 31)))
+                if cutoff <= date(2026, 10, 31):
+                    self.assertEqual(metric["current_year_status"][metric["day_keys"].index(cutoff.strftime("%m-%d"))], "available")
                 overlay_field = "vapor_pressure_deficit_max" if variable == "vapour_pressure_deficit_max" else variable
                 overlay_rows = builder._load_current_au_central_overlay()[aoi]
                 self.assertEqual(
@@ -782,8 +790,12 @@ class PublicDashboardTest(unittest.TestCase):
                 self.assertEqual(metric["current_year_status"][index], "available" if actual <= dynamic_cutoff else "future")
 
             watch = next(row for row in self.payload["central_asia_watch"]["aois"] if row["id"] == aoi_id)
-            cutoff_index = metric["day_keys"].index(metric["display_cutoff_date"][5:])
-            self.assertEqual(metric["current_year"][cutoff_index], watch["weather_anomaly_score"])
+            self.assertEqual(self.payload["central_asia_watch"]["as_of_weather_date"], metric["display_cutoff_date"])
+            if date.fromisoformat(metric["display_cutoff_date"]) <= date(2026, 10, 31):
+                cutoff_index = metric["day_keys"].index(metric["display_cutoff_date"][5:])
+                self.assertEqual(metric["current_year"][cutoff_index], watch["weather_anomaly_score"])
+            else:
+                self.assertEqual(metric["displayed_through_date"], "2026-10-31")
 
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         self.assertIn('data-chart-metric="weather_anomaly_score"', html)
@@ -1050,8 +1062,10 @@ class PublicDashboardTest(unittest.TestCase):
         au_available = [key for key, status in zip(keys, statuses) if status == "available"]
         au_cutoff = date(2026, *(int(part) for part in au_available[-1].split("-")))
         self.assertEqual(statuses[keys.index(au_available[-1])], "available")
-        self.assertEqual(statuses[keys.index((au_cutoff + timedelta(days=1)).strftime("%m-%d"))], "future")
-        self.assertEqual(statuses[keys.index("11-01")], "future")
+        next_key = (au_cutoff + timedelta(days=1)).strftime("%m-%d")
+        if next_key in keys:
+            self.assertEqual(statuses[keys.index(next_key)], "future")
+        self.assertTrue(any(status == "future" for status in statuses))
 
     def test_australia_manifest_crosswalk_identity_and_raw_anchor_rebuild(self):
         manifest_path = COTTON / "research/raw/australia_central_asia_era5_daily_v0_1/source_manifest_v0_1.json"

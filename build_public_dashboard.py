@@ -1438,6 +1438,7 @@ def _central_anomaly_metric(payload: dict, keys: list[str], cutoff: date = date(
         "status": "available", "last_year_status": last_status, "current_year_status": current_status,
         "status_counts": {"last_year": _status_counts(last_status), "current_year": _status_counts(current_status)},
         "display_cutoff_date": cutoff.isoformat(),
+        "displayed_through_date": min(cutoff, date(2026, 10, 31)).isoformat(),
         "cross_region_comparable": False, "weather_stress_score": None,
     }
 
@@ -1527,6 +1528,7 @@ def build_central_asia_seasonal() -> dict:
                 "history_year_count": 34, "status": "available",
                 "current_year_status": current_status,
                 "display_cutoff_date": cutoff.isoformat(),
+                "displayed_through_date": min(cutoff, date(2026, int(window_end[:2]), int(window_end[3:]))).isoformat(),
                 "lineage": first.get("gap_codes", ""),
             }
         extended_payload = _central_payload_with_current_overlay(raw_payloads[aoi_name], aoi_name, cutoff)
@@ -1540,6 +1542,7 @@ def build_central_asia_seasonal() -> dict:
             "display_window_label": window_label, "display_window_status": window_status,
             "cross_year_axis": False,
             "display_cutoff_date": cutoff.isoformat(),
+            "displayed_through_date": min(cutoff, date(2026, int(window_end[:2]), int(window_end[3:]))).isoformat(),
             "metrics": metrics, "gap_codes": first.get("gap_codes", "").split(";") if first.get("gap_codes") else [],
         }
     return result
@@ -2352,6 +2355,7 @@ def build_region(geography: str, supply_row: dict | None = None) -> dict:
         "confidence_display": CONFIDENCE_DISPLAY.get(national.get("confidence"), "暂无"),
         "point_coverage": national.get("point_coverage"),
         "target_point_count": national.get("target_point_count", national.get("active_point_count", national.get("point_registry_expected_count", 18 if geography == "China" else None))),
+        "configured_point_count": national.get("point_registry_expected_count", national.get("target_point_count", national.get("active_point_count", 18 if geography == "China" else None))),
         "valid_point_count": national.get("valid_point_count", 18 if geography == "China" else None),
         "production_weight_coverage": (None if geography == "China" else national.get("production_weight_coverage", national.get("production_weight_coverage_of_india", national.get("production_weight_coverage_us_total")))),
         "official_production_weight_coverage": (None if geography == "China" else national.get("official_production_weight_coverage", national.get("production_weight_coverage_of_india", national.get("production_weight_coverage_us_total")))),
