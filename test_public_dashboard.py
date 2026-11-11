@@ -711,9 +711,10 @@ class PublicDashboardTest(unittest.TestCase):
                     self.assertEqual(metric["current_year_status"][metric["day_keys"].index(cutoff.strftime("%m-%d"))], "available")
                 overlay_field = "vapor_pressure_deficit_max" if variable == "vapour_pressure_deficit_max" else variable
                 overlay_rows = builder._load_current_au_central_overlay()[aoi]
+                overlay_comparison_date = display_through
                 self.assertEqual(
-                    metric["current_year"][metric["day_keys"].index(cutoff.strftime("%m-%d"))],
-                    overlay_rows[cutoff][overlay_field],
+                    metric["current_year"][metric["day_keys"].index(overlay_comparison_date.strftime("%m-%d"))],
+                    overlay_rows[overlay_comparison_date][overlay_field],
                 )
                 if cutoff < date(cutoff.year, 10, 31):
                     next_day = cutoff + timedelta(days=1)
