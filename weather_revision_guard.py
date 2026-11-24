@@ -202,6 +202,10 @@ def verify_frozen_revisions(
     runs_root = runs_root.resolve() if runs_root else (automation_root / "runs").resolve()
     candidates = []
     for manifest_path in sorted(runs_root.glob("*.json")):
+        # exFAT volumes can expose macOS AppleDouble sidecars such as
+        # ._20261013T003003Z.json; they are binary metadata, not run ledgers.
+        if manifest_path.name.startswith("._"):
+            continue
         if manifest_path.resolve() == baseline_manifest:
             continue
         if not _successful_download(manifest_path, automation_root):

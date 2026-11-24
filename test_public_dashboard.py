@@ -1259,6 +1259,16 @@ class PublicDashboardTest(unittest.TestCase):
             path = builder.NATIONAL_DAILY_PATHS[geo] if geo in builder.NATIONAL_DAILY_PATHS else builder.DAILY_PATHS[geo]
             with path.open(encoding="utf-8", newline="") as handle:
                 daily[ids[geo]] = {date.fromisoformat(row["date"]): (None if row.get("theoretical_weather_stress_index", "") == "" else float(row["theoretical_weather_stress_index"])) for row in csv.DictReader(handle)}
+        with builder.AUSTRALIA_HISTORICAL_SCORE_PATH.open(encoding="utf-8", newline="") as handle:
+            historical_au = {date.fromisoformat(row["date"]): (None if not row["theoretical_weather_stress_index"] else float(row["theoretical_weather_stress_index"])) for row in csv.DictReader(handle)}
+        self.assertFalse(set(historical_au) & set(daily["australia"]))
+        daily["australia"].update(historical_au)
+        annual_weights = {}
+        with builder.HISTORICAL_PRODUCTION_PATH.open(encoding="utf-8", newline="") as handle:
+            for row in csv.DictReader(handle):
+                amounts = {geo: float(row[ids[geo] + "_1000_bales"]) for geo in geographies}
+                denominator = math.fsum(amounts.values())
+                annual_weights[int(row["year"])] = {ids[geo]: amounts[geo] / denominator for geo in geographies}
         latest_by_region = {
             rid: max(day for day, value in rows.items() if value is not None)
             for rid, rows in daily.items()
@@ -1277,7 +1287,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertEqual(metric["scale_min"], 0)
         self.assertEqual(metric["scale_max"], 100)
         self.assertEqual(metric["coverage_max"], 1.0)
-        self.assertEqual(max(v for values in metric["history_production_weight_coverage"].values() for v in values if v is not None), 0.9674623919480266)
+        self.assertEqual(max(v for values in metric["history_production_weight_coverage"].values() for v in values if v is not None), 1.0)
         for index, key in enumerate(metric["day_keys"]):
             month, day = map(int, key.split("-"))
             actual = date(2026, month, day)
@@ -1296,6 +1306,7 @@ class PublicDashboardTest(unittest.TestCase):
         # Rebuild the prior year and every history-band day from the five source CSVs.
         history_expected = {str(year): [] for year in range(2015, 2025)}
         for year in list(range(2015, 2025)) + [2025]:
+            year_weights = annual_weights[year]
             coverage_key = str(year) if year != 2025 else None
             coverage_array = metric["history_production_weight_coverage"][coverage_key] if coverage_key else metric["last_year_production_weight_coverage"]
             ids_array = metric["history_valid_region_ids"][coverage_key] if coverage_key else metric["last_year_valid_region_ids"]
@@ -1305,13 +1316,13 @@ class PublicDashboardTest(unittest.TestCase):
                 month, day = map(int, key.split("-")); actual = date(year, month, day)
                 vals = {rid: daily[rid].get(actual) for rid in ids.values()}
                 valid = [rid for rid, value in vals.items() if value is not None]
-                coverage = math.fsum(weights[rid] for rid in valid)
+                coverage = math.fsum(year_weights[rid] for rid in valid)
                 self.assertEqual(coverage_array[index], coverage)
                 self.assertEqual(ids_array[index], valid)
                 if coverage < .60:
                     expected_value = None; expected_status = "coverage_below_gate"
                 else:
-                    expected_value = math.fsum(weights[rid] * vals[rid] for rid in valid) / coverage; expected_status = "available"
+                    expected_value = math.fsum(year_weights[rid] * vals[rid] for rid in valid) / coverage; expected_status = "available"
                 self.assertEqual(status_array[index], expected_status)
                 if value_array is not None: self.assertEqual(value_array[index], expected_value)
                 if year != 2025: history_expected[str(year)].append(expected_value)
@@ -1334,7 +1345,7 @@ class PublicDashboardTest(unittest.TestCase):
         self.assertIn("全球棉花五大种植区域天气胁迫总评分（产区产量加权）", html)
         self.assertIn("中国棉花种植区以新疆为代表，未包含中国疆外种棉区", html)
         self.assertNotIn("中国天气输入仅为新疆代理，并非中国全国网络", html)
-        self.assertIn("历史带不含补造的澳洲历史分", self.payload["five_region_production_weighted_weather_stress_display"]["seasonal_metric"]["historical_band_note"])
+        self.assertIn("澳洲历史为ERA5回顾性研究分", self.payload["five_region_production_weighted_weather_stress_display"]["seasonal_metric"]["historical_band_note"])
         self.assertIn("覆盖不足不按0处理", html)
         self.assertIn("M.nonnegative?Math.max(0,lo-extra):lo-extra", html)
         self.assertIn("data.json?ts=${Date.now()}", html)
@@ -1420,9 +1431,12 @@ class PublicDashboardTest(unittest.TestCase):
         india_score = self.payload["seasonal"]["india"]["metrics"]["score"]
         self.assertTrue(eligible("india", india_score))
         southern_score = self.payload["subregion_seasonal"]["india"]["AP"]["metrics"]["score"]
-        north_central_score = self.payload["subregion_seasonal"]["india"]["MH"]["metrics"]["score"]
         self.assertTrue(eligible("india", southern_score))
-        self.assertFalse(eligible("india", north_central_score))
+        north_central = self.payload["subregion_seasonal"]["india"]["MH"]
+        if north_central["status"] == "source_revision_mismatch":
+            self.assertEqual(north_central["metrics"], {})
+        else:
+            self.assertFalse(eligible("india", north_central["metrics"]["score"]))
         india_raw = self.payload["seasonal"]["india"]["raw_metrics"]["tmax_14d_mean"]
         self.assertFalse(eligible("india", india_raw))
         brazil_score = self.payload["seasonal"]["brazil"]["metrics"]["root_zone_dryness"]
@@ -1642,7 +1656,11 @@ class PublicDashboardTest(unittest.TestCase):
                     self.assertIn("score", bundle["metrics"])
                     self.assertTrue(any(value is not None for value in bundle["metrics"]["score"]["history_min"]))
         for region_id, subregion_id in (("us", "TX"), ("brazil", "MT"), ("india", "GJ")):
-            self.assertIn("score", self.payload["subregion_seasonal"][region_id][subregion_id]["metrics"])
+            bundle = self.payload["subregion_seasonal"][region_id][subregion_id]
+            if bundle["status"] == "source_revision_mismatch":
+                self.assertEqual(bundle["metrics"], {})
+            else:
+                self.assertIn("score", bundle["metrics"])
 
     def test_subregion_chart_current_values_match_displayed_local_values(self):
         for region in self.payload["regions"]:

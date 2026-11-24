@@ -2470,6 +2470,26 @@ PRODUCTION_WEIGHTED_REGION_IDS = {
     "China": "china", "United States": "us", "Brazil": "brazil", "India": "india", "Australia": "australia",
 }
 PRODUCTION_WEIGHTED_KEYS = _window_keys("04-01", "11-30")
+HISTORICAL_PRODUCTION_PATH = COTTON_ROOT / "exports/historical_production_2014_2025_trademate.csv"
+AUSTRALIA_HISTORICAL_SCORE_PATH = COTTON_ROOT / "exports/australia_historical_weather_scores.csv"
+
+
+def _annual_production_weights() -> dict[int, dict[str, float]]:
+    """Current revised annual production, for retrospective chart years only."""
+    result = {}
+    with HISTORICAL_PRODUCTION_PATH.open(encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            year = int(row["year"])
+            if year in result:
+                raise ValueError(f"duplicate historical production year: {year}")
+            amounts = {geo: float(row[PRODUCTION_WEIGHTED_REGION_IDS[geo] + "_1000_bales"]) for geo in PRODUCTION_WEIGHTED_REGIONS}
+            if any(not math.isfinite(value) or value <= 0 for value in amounts.values()):
+                raise ValueError(f"invalid historical production year: {year}")
+            total = math.fsum(amounts.values())
+            result[year] = {geo: amounts[geo] / total for geo in PRODUCTION_WEIGHTED_REGIONS}
+    if not set(range(2015, 2026)) <= set(result):
+        raise ValueError("historical production year gap")
+    return result
 
 
 def _production_weights(brief: dict) -> tuple[list[dict], dict[str, float]]:
@@ -2532,6 +2552,11 @@ def _production_year_trace(year: int, daily: dict[str, dict[date, float | None]]
 def build_production_weighted_weather(brief: dict) -> dict:
     weight_rows, weights = _production_weights(brief)
     daily = {PRODUCTION_WEIGHTED_REGION_IDS[geo]: _score_daily_by_date(NATIONAL_DAILY_PATHS[geo] if geo in NATIONAL_DAILY_PATHS else DAILY_PATHS[geo]) for geo in PRODUCTION_WEIGHTED_REGIONS}
+    annual_weights = _annual_production_weights()
+    historical_au = _score_daily_by_date(AUSTRALIA_HISTORICAL_SCORE_PATH)
+    if any(day in daily["australia"] for day in historical_au):
+        raise ValueError("historical Australia replay overlaps published daily")
+    daily["australia"].update(historical_au)
     latest_by_region = {
         region_id: max(day for day, value in values.items() if value is not None)
         for region_id, values in daily.items()
@@ -2540,8 +2565,8 @@ def build_production_weighted_weather(brief: dict) -> dict:
     history_years = list(range(2015, 2025))
     history, history_coverage, history_ids, history_status = {}, {}, {}, {}
     for year in history_years:
-        history[str(year)], history_coverage[str(year)], history_ids[str(year)], history_status[str(year)] = _production_year_trace(year, daily, weights, common_cutoff)
-    last_year, last_coverage, last_ids, last_status = _production_year_trace(2025, daily, weights, common_cutoff)
+        history[str(year)], history_coverage[str(year)], history_ids[str(year)], history_status[str(year)] = _production_year_trace(year, daily, annual_weights[year], common_cutoff)
+    last_year, last_coverage, last_ids, last_status = _production_year_trace(2025, daily, annual_weights[2025], common_cutoff)
     current_year, current_coverage, current_ids, current_status = _production_year_trace(2026, daily, weights, common_cutoff, current=True)
     history_min = [min((history[str(year)][idx] for year in history_years if history[str(year)][idx] is not None), default=None) for idx in range(len(PRODUCTION_WEIGHTED_KEYS))]
     history_max = [max((history[str(year)][idx] for year in history_years if history[str(year)][idx] is not None), default=None) for idx in range(len(PRODUCTION_WEIGHTED_KEYS))]
@@ -2557,7 +2582,7 @@ def build_production_weighted_weather(brief: dict) -> dict:
     metric = {
         "id": PRODUCTION_WEIGHTED_ID, "label": PRODUCTION_WEIGHTED_NAME, "unit": "分", "window": "逐日产量权重展示合成",
         "scale_type": "fixed_score_0_100", "scale_min": 0, "scale_max": 100,
-        "value_semantics": "五个当地理论天气胁迫分的产量权重展示合成；不是统一模型、减产比例或产量预测",
+        "value_semantics": "历史按对应年度修订后产量权重回算；今年按当前供需快照权重。不是统一模型、减产比例或产量预测",
         "blank_value_label": "覆盖不足不按0处理；地区组合变化可能同时影响曲线",
         "day_keys": PRODUCTION_WEIGHTED_KEYS, "history_min": history_min, "history_max": history_max,
         "last_year": last_year, "current_year": current_year, "last_year_label": "2025", "current_year_label": "2026",
@@ -2568,7 +2593,7 @@ def build_production_weighted_weather(brief: dict) -> dict:
         "last_year_status": last_status, "current_year_status": current_status, "status_counts": status_counts,
         "display_window_start": "04-01", "display_window_end": "11-30", "display_window_label": "04-01—11-30",
         "cross_year_axis": False, "common_cutoff_date": common_cutoff.isoformat(),
-        "historical_band_note": "历史带不含补造的澳洲历史分；覆盖不足不按0处理；地区组合变化可能同时影响曲线",
+        "historical_band_note": "历史按对应年度产量权重回算；澳洲历史为ERA5回顾性研究分，州内权重固定；非PIT。覆盖不足不按0处理",
         "coverage_min": min(coverage_values) if coverage_values else None, "coverage_max": max(coverage_values) if coverage_values else None,
         "usable_day_counts": {
             "history_total": sum(value is not None for series in history.values() for value in series),
@@ -2587,6 +2612,11 @@ def build_production_weighted_weather(brief: dict) -> dict:
         "current_region_scores": current_scores, "current_score": current_result["value"],
         "weighted_production_coverage": current_result["production_weight_coverage"], "valid_region_ids": current_result["valid_region_ids"],
         "current_status": current_result["status"], "seasonal_metric": metric,
+        "historical_weight_method": "same_calendar_year_revised_annual_production_not_pit",
+        "historical_production_source_path": str(HISTORICAL_PRODUCTION_PATH.relative_to(COTTON_ROOT)),
+        "historical_australia_score_source_path": str(AUSTRALIA_HISTORICAL_SCORE_PATH.relative_to(COTTON_ROOT)),
+        "historical_australia_replay_not_pit": True,
+        "historical_annual_production_weights": {str(year): {PRODUCTION_WEIGHTED_REGION_IDS[geo]: share for geo, share in annual_weights[year].items()} for year in range(2015, 2026)},
         "weather_input_paths": {
             geo: str((NATIONAL_DAILY_PATHS[geo] if geo in NATIONAL_DAILY_PATHS else DAILY_PATHS[geo]).relative_to(COTTON_ROOT))
             for geo in PRODUCTION_WEIGHTED_REGIONS
